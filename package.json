@@ -1,0 +1,38 @@
+{
+  "name": "ts-cdp",
+  "version": "1.0.0",
+  "description": "A TypeScript library for Chrome DevTools Protocol (CDP) operations",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "example": "ts-node examples/basic-usage.ts",
+    "lint": "eslint src/**/*.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "chrome",
+    "cdp",
+    "devtools-protocol",
+    "puppeteer",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "chrome-remote-interface": "^0.33.0"
+  },
+  "devDependencies": {
+    "@types/chrome-remote-interface": "^0.33.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
