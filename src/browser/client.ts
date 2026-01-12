@@ -1,4 +1,4 @@
-import * as CDP from 'chrome-remote-interface';
+import CDP from 'chrome-remote-interface';
 import { NetworkListener } from '../network/listener';
 import { createLogger } from '../utils/logger';
 import type {
@@ -75,6 +75,10 @@ export class CDPClient {
       logger.error('Failed to connect to CDP', error);
       throw error;
     }
+  }
+
+  getClient(): CDP.Client | null {
+    return this.client;
   }
 
   private async getCurrentUrl(): Promise<string> {

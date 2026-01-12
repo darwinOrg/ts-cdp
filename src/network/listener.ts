@@ -1,4 +1,4 @@
-import * as CDP from 'chrome-remote-interface';
+import CDP from 'chrome-remote-interface';
 import type Protocol from 'devtools-protocol/types/protocol.d';
 import { getPureUrl } from '../utils/url';
 import { createLogger } from '../utils/logger';
@@ -6,10 +6,8 @@ import type {
   NetworkCallback,
   NetworkListenerConfig,
   RequestData,
-  HARLogEntry,
   HAR,
   NetworkRequestInfo,
-  NetworkResponseInfo
 } from '../types';
 
 const logger = createLogger('NetworkListener');
