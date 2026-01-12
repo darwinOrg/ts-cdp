@@ -1,7 +1,7 @@
-import { launch, CDPClient } from '../src';
+import { launch, CDPClient, interceptMultipleApis } from '../src';
 
 async function networkMonitoringExample() {
-  console.log('=== Network Monitoring Example ===\n');
+  console.log('=== Network Monitoring Example (Using API Interceptor) ===\n');
 
   // Launch Chrome
   const chrome = await launch({
@@ -9,75 +9,132 @@ async function networkMonitoringExample() {
     startingUrl: 'https://httpbin.org'
   });
 
+  let client: CDPClient | null = null;
+
   try {
     // Connect to CDP
-    const client = new CDPClient({
+    client = new CDPClient({
       port: chrome.port,
-      name: 'network-monitor',
-      watchUrls: [
-        'https://httpbin.org/get',
-        'https://httpbin.org/post',
-        'https://httpbin.org/json'
-      ]
+      name: 'network-monitor'
     });
     await client.connect();
 
-    console.log('1. Setting up network callbacks...\n');
+    console.log('1. Setting up API interception...\n');
 
-    // Add callback for GET requests
-    client.addNetworkCallback('https://httpbin.org/get', (response, request) => {
-      console.log('✓ GET request captured:');
-      console.log(`  Response: ${JSON.stringify(response).slice(0, 150)}...`);
-      console.log(`  Request body: ${request || 'none'}\n`);
+    // Define APIs to monitor
+    const apiUrls = [
+      'https://httpbin.org/get',
+      'https://httpbin.org/post',
+      'https://httpbin.org/json'
+    ];
+
+    console.log('   Monitoring APIs:');
+    apiUrls.forEach((url, index) => {
+      console.log(`   ${index + 1}. ${url}`);
+    });
+    console.log();
+
+    // Use API interceptor to capture multiple APIs
+    console.log('2. Capturing API requests...');
+    const results = await interceptMultipleApis(
+      client,
+      apiUrls,
+      {
+        timeout: 10000,
+        maxAttempts: 2,
+        triggerAction: async () => {
+          console.log('   Triggering: navigate and interact...');
+          await client.navigate('https://httpbin.org');
+
+          // Wait a bit
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Trigger GET request
+          await client.executeScript(`
+            fetch('https://httpbin.org/get?test=123')
+          `);
+
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Trigger POST request
+          await client.executeScript(`
+            fetch('https://httpbin.org/post', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ test: 'data', timestamp: Date.now() })
+            });
+          `);
+
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Navigate to JSON endpoint
+          await client.navigate('https://httpbin.org/json');
+        }
+      }
+    );
+
+    console.log('\n3. Interception Results:\n');
+
+    let successCount = 0;
+    results.forEach((result, url) => {
+      const apiName = url.split('/').pop() || url;
+      const status = result.success ? '✓' : '✗';
+      console.log(`   ${status} ${apiName}`);
+
+      if (result.success && result.data) {
+        successCount++;
+        console.log(`     Attempts: ${result.metadata?.attemptCount}`);
+        console.log(`     Data Length: ${result.data.length} chars`);
+
+        // Parse and show some data
+        try {
+          const data = JSON.parse(result.data);
+          if (data.response?.args) {
+            console.log(`     Query Params: ${JSON.stringify(data.response.args)}`);
+          }
+          if (data.response?.json) {
+            console.log(`     JSON Data: ${JSON.stringify(data.response.json).substring(0, 50)}...`);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      } else {
+        console.log(`     Error: ${result.error}`);
+      }
+      console.log();
     });
 
-    // Add callback for POST requests
-    client.addNetworkCallback('https://httpbin.org/post', (response, request) => {
-      console.log('✓ POST request captured:');
-      console.log(`  Response: ${JSON.stringify(response).slice(0, 150)}...`);
-      console.log(`  Request body: ${request?.slice(0, 100)}...\n`);
-    });
+    console.log(`   Summary: ${successCount}/${results.size} APIs captured\n`);
 
-    // Add callback for JSON requests
-    client.addNetworkCallback('https://httpbin.org/json', (response, request) => {
-      console.log('✓ JSON request captured:');
-      console.log(`  Response keys: ${Object.keys(response).join(', ')}\n`);
-    });
-
-    console.log('2. Navigating to httpbin.org/get...');
-    await client.navigate('https://httpbin.org/get');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log('3. Triggering POST request via JavaScript...');
-    await client.executeScript(`
-      fetch('https://httpbin.org/post', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: 'data', timestamp: Date.now() })
-      });
-    `);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log('4. Navigating to httpbin.org/json...');
-    await client.navigate('https://httpbin.org/json');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log('5. Getting complete HAR log...');
-    const har = client.getHAR();
-    console.log(`   Total entries: ${har.log.entries.length}`);
-    console.log(`   XHR/Fetch requests: ${har.log.entries.filter(e => 
-      e.request.url.includes('httpbin')
-    ).length}\n`);
-
-    // Save HAR
+    // Save results
     const fs = require('fs');
-    fs.writeFileSync('network-monitoring.har', JSON.stringify(har, null, 2));
-    console.log('✓ HAR saved to network-monitoring.har\n');
+    const allResults: any = {};
+    results.forEach((result, url) => {
+      const apiName = url.split('/').pop() || url;
+      allResults[apiName] = result;
+    });
+    fs.writeFileSync('network-monitoring-results.json', JSON.stringify(allResults, null, 2));
+    console.log('✓ Results saved to network-monitoring-results.json\n');
+
+    // Get HAR log
+    console.log('4. Getting complete HAR log...');
+    const har = client.getHAR();
+    if (har) {
+      console.log(`   Total entries: ${har.log.entries.length}`);
+      console.log(`   XHR/Fetch requests: ${har.log.entries.filter(e =>
+        e.request.url.includes('httpbin')
+      ).length}`);
+
+      fs.writeFileSync('network-monitoring.har', JSON.stringify(har, null, 2));
+      console.log('✓ HAR saved to network-monitoring.har\n');
+    }
 
   } catch (error) {
     console.error('Error:', error);
   } finally {
-    await client.close();
+    if (client) {
+      await client.close();
+    }
     chrome.kill();
     console.log('=== Example Complete ===');
   }

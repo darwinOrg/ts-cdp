@@ -1,4 +1,4 @@
-import { launch, CDPClient } from '../src';
+import { launch, CDPClient, interceptApiData } from '../src';
 
 async function basicExample() {
   console.log('=== Basic CDP Usage Example ===\n');
@@ -11,10 +11,12 @@ async function basicExample() {
   });
   console.log(`   Chrome launched on port ${chrome.port}\n`);
 
+  let client: CDPClient | null = null;
+
   try {
     // 2. Connect to CDP
     console.log('2. Connecting to CDP...');
-    const client = new CDPClient({
+    client = new CDPClient({
       port: chrome.port,
       name: 'example-client'
     });
@@ -46,35 +48,54 @@ async function basicExample() {
     fs.writeFileSync('screenshot.png', Buffer.from(screenshot, 'base64'));
     console.log('   Screenshot saved to screenshot.png\n');
 
-    // 7. Add network listener
-    console.log('7. Adding network listener...');
-    client.addNetworkCallback('https://example.com', (response, request) => {
-      console.log(`   Network request captured: ${JSON.stringify(response).slice(0, 100)}...`);
-    });
+    // 7. Use API interceptor to capture network requests
+    console.log('7. Using API interceptor to capture requests...');
+    const apiResult = await interceptApiData(
+      client!,
+      'https://example.com',
+      {
+        timeout: 5000,
+        maxAttempts: 2,
+        triggerAction: async () => {
+          console.log('   Triggering: reload page...');
+          await client!.reload();
+        }
+      }
+    );
 
-    // 8. Reload page
-    console.log('8. Reloading page...');
-    await client.reload();
-    console.log('   Page reloaded\n');
+    console.log(`   API Interceptor Result:`);
+    console.log(`     Success: ${apiResult.success}`);
+    console.log(`     Timestamp: ${apiResult.metadata?.timestamp}`);
+    console.log(`     Attempt Count: ${apiResult.metadata?.attemptCount}`);
 
-    // Wait a bit
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    if (apiResult.success && apiResult.data) {
+      console.log(`     Data Length: ${apiResult.data.length} characters`);
+      const data = JSON.parse(apiResult.data);
+      console.log(`     Response Status: ${data.response?.status || 'N/A'}`);
+    } else {
+      console.log(`     Error: ${apiResult.error}`);
+    }
+    console.log();
 
-    // 9. Get HAR log
-    console.log('9. Getting HAR log...');
+    // 8. Get HAR log
+    console.log('8. Getting HAR log...');
     const har = client.getHAR();
-    console.log(`   HAR entries: ${har.log.entries.length}\n`);
+    console.log(`   HAR entries: ${har?.log.entries.length || 0}\n`);
 
     // Save HAR
-    fs.writeFileSync('network.har', JSON.stringify(har, null, 2));
-    console.log('   HAR saved to network.har\n');
+    if (har) {
+      fs.writeFileSync('network.har', JSON.stringify(har, null, 2));
+      console.log('   HAR saved to network.har\n');
+    }
 
   } catch (error) {
     console.error('Error:', error);
   } finally {
-    // 10. Cleanup
-    console.log('10. Cleaning up...');
-    await client.close();
+    // 9. Cleanup
+    console.log('9. Cleaning up...');
+    if (client) {
+      await client.close();
+    }
     chrome.kill();
     console.log('    Cleanup complete\n');
 

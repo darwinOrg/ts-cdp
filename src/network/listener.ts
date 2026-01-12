@@ -1,4 +1,4 @@
-import CDP from 'chrome-remote-interface';
+import * as CDP from 'chrome-remote-interface';
 import type Protocol from 'devtools-protocol/types/protocol.d';
 import { getPureUrl } from '../utils/url';
 import { createLogger } from '../utils/logger';

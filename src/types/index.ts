@@ -1,9 +1,24 @@
-import type Protocol from 'devtools-protocol/types/protocol.d';
-
 export interface CDPClientOptions {
   host?: string;
   port: number;
   enableDomains?: string[];
+}
+
+export interface InterceptOptions {
+  timeout?: number;
+  maxAttempts?: number;
+  triggerAction?: () => Promise<void>;
+}
+
+export interface InterceptResult {
+  success: boolean;
+  data?: string;
+  error?: string;
+  metadata?: {
+    timestamp: string;
+    attemptCount: number;
+    requestUrl: string;
+  };
 }
 
 export interface NetworkRequestInfo {

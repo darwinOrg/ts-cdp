@@ -9,9 +9,11 @@ async function loginMonitoringExample() {
     startingUrl: 'https://github.com'
   });
 
+  let client: CDPClient | null = null;
+
   try {
     // Connect to CDP with login monitoring
-    const client = new CDPClient({
+    client = new CDPClient({
       port: chrome.port,
       name: 'login-monitor',
       loginCallback: (state) => {
@@ -52,7 +54,9 @@ async function loginMonitoringExample() {
   } catch (error) {
     console.error('Error:', error);
   } finally {
-    await client.close();
+    if (client) {
+      await client.close();
+    }
     chrome.kill();
     console.log('\n=== Example Complete ===');
   }

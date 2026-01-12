@@ -1,5 +1,4 @@
-import CDP from 'chrome-remote-interface';
-import type Protocol from 'devtools-protocol/types/protocol.d';
+import * as CDP from 'chrome-remote-interface';
 import { NetworkListener } from '../network/listener';
 import { createLogger } from '../utils/logger';
 import type {
@@ -34,10 +33,14 @@ export class CDPClient {
 
   async connect(): Promise<CDP.Client> {
     try {
-      this.client = await CDP({
+      this.client = await (CDP as any)({
         host: this.options.host!,
         port: this.options.port
       });
+
+      if (!this.client) {
+        throw new Error('Failed to create CDP client');
+      }
 
       this.client.on('disconnect', () => {
         logger.info(`Disconnected from port ${this.options.port}`);
@@ -62,7 +65,7 @@ export class CDPClient {
       this.currentUrl = await this.getCurrentUrl();
 
       await this.initNetworkListener();
-      
+
       if (this.config.loginCallback && this.config.loginUrlPatterns) {
         await this.initLoginStatus();
       }
