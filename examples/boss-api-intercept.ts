@@ -67,7 +67,9 @@ async function interceptBossAPI() {
         maxAttempts: 3,
         triggerAction: async () => {
           console.log('   触发操作: 访问目标页面...');
-          await client.navigate(targetUrl);
+          if (client) {
+            await client.navigate(targetUrl);
+          }
 
           console.log('   等待页面加载...');
           await new Promise(resolve => setTimeout(resolve, 3000));

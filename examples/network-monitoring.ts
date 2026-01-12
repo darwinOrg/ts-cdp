@@ -44,31 +44,33 @@ async function networkMonitoringExample() {
         maxAttempts: 2,
         triggerAction: async () => {
           console.log('   Triggering: navigate and interact...');
-          await client.navigate('https://httpbin.org');
+          if (client) {
+            await client.navigate('https://httpbin.org');
 
-          // Wait a bit
-          await new Promise(resolve => setTimeout(resolve, 1000));
+            // Wait a bit
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Trigger GET request
-          await client.executeScript(`
-            fetch('https://httpbin.org/get?test=123')
-          `);
+            // Trigger GET request
+            await client.executeScript(`
+              fetch('https://httpbin.org/get?test=123')
+            `);
 
-          await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Trigger POST request
-          await client.executeScript(`
-            fetch('https://httpbin.org/post', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ test: 'data', timestamp: Date.now() })
-            });
-          `);
+            // Trigger POST request
+            await client.executeScript(`
+              fetch('https://httpbin.org/post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ test: 'data', timestamp: Date.now() })
+              });
+            `);
 
-          await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Navigate to JSON endpoint
-          await client.navigate('https://httpbin.org/json');
+            // Navigate to JSON endpoint
+            await client.navigate('https://httpbin.org/json');
+          }
         }
       }
     );

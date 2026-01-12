@@ -53,10 +53,12 @@ async function preciseApiIntercept() {
         triggerAction: async () => {
           console.log('   Triggering: navigate to target page...');
           const targetUrl = 'https://www.zhipin.com/gongsi/job/5d627415a46b4a750nJ9.html?ka=company-jobs';
-          await client.navigate(targetUrl);
+          if (client) {
+            await client.navigate(targetUrl);
 
-          console.log('   Triggering: reload page...');
-          await client.reload();
+            console.log('   Triggering: reload page...');
+            await client.reload();
+          }
         }
       }
     );
