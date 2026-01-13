@@ -97,15 +97,15 @@ export class BrowserWebSocketServer {
     
     switch (message.type) {
       case 'start_browser':
-        await this.startBrowser(ws, sessionId, message.data);
+        await this.startBrowser(ws, sessionId, message);
         break;
       
       case 'stop_browser':
-        await this.stopBrowser(sessionId);
+        await this.stopBrowser(sessionId, message);
         break;
       
       case 'new_page':
-        await this.newPage(sessionId, message.pageId);
+        await this.newPage(sessionId, message);
         break;
       
       case 'close_page':
@@ -113,7 +113,7 @@ export class BrowserWebSocketServer {
         break;
       
       case 'navigate':
-        await this.navigate(sessionId, message.pageId, message.data);
+        await this.navigate(sessionId, message);
         break;
       
       case 'reload':
@@ -125,7 +125,7 @@ export class BrowserWebSocketServer {
         break;
       
       case 'get_title':
-        await this.getTitle(sessionId, message.pageId);
+        await this.getTitle(sessionId, message);
         break;
       
       case 'get_url':
@@ -189,9 +189,9 @@ export class BrowserWebSocketServer {
     }
   }
 
-  private async startBrowser(ws: WebSocket, sessionId: string, options: any): Promise<void> {
+  private async startBrowser(ws: WebSocket, sessionId: string, message: any): Promise<void> {
     try {
-      const chrome = await launch(options);
+      const chrome = await launch(message.data || {});
       const client = new CDPClient({ 
         port: chrome.port, 
         name: sessionId 
@@ -210,7 +210,7 @@ export class BrowserWebSocketServer {
 
       this.sendResponse(ws, {
         type: 'browser_started',
-        requestId: options?.requestId,
+        requestId: message?.requestId,
         success: true,
         data: {
           sessionId,
@@ -218,13 +218,18 @@ export class BrowserWebSocketServer {
         }
       });
     } catch (error) {
-      this.sendError(ws, options?.requestId, error instanceof Error ? error.message : 'Failed to start browser');
+      this.sendError(ws, message?.requestId, error instanceof Error ? error.message : 'Failed to start browser');
     }
   }
 
-  private async stopBrowser(sessionId: string): Promise<void> {
+  private async stopBrowser(sessionId: string, message?: any): Promise<void> {
     const session = this.sessions.get(sessionId);
-    if (!session) return;
+    if (!session) {
+      if (message?.requestId) {
+        this.sendError(undefined, message?.requestId, 'Session not found');
+      }
+      return;
+    }
 
     // 关闭所有页面
     for (const [pageId, page] of session.pages) {
@@ -239,17 +244,29 @@ export class BrowserWebSocketServer {
     session.chrome.kill();
 
     this.sessions.delete(sessionId);
+
+    if (message?.requestId) {
+      this.sendResponse(session.ws, {
+        type: 'browser_stopped',
+        requestId: message?.requestId,
+        success: true
+      });
+    }
   }
 
-  private async newPage(sessionId: string, pageId?: string): Promise<void> {
+  private async newPage(sessionId: string, message: any): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
-      this.sendError(undefined, undefined, 'Session not found');
+      this.sendError(undefined, message?.requestId, 'Session not found');
       return;
     }
 
-    const id = pageId || `page-${Date.now()}`;
+    const id = message.pageId || `page-${Date.now()}`;
     const page = new BrowserPage(session.client, { name: id });
+    
+    // 初始化页面
+    await page.init();
+    
     session.pages.set(id, page);
 
     // 监听页面事件
@@ -257,6 +274,7 @@ export class BrowserWebSocketServer {
 
     this.sendResponse(session.ws, {
       type: 'page_created',
+      requestId: message?.requestId,
       success: true,
       data: { pageId: id }
     });
@@ -284,35 +302,39 @@ export class BrowserWebSocketServer {
     });
   }
 
-  private async navigate(sessionId: string, pageId?: string, data?: any): Promise<void> {
+private async navigate(sessionId: string, message: any): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
+    const pageId = message.pageId;
+    const data = message.data;
+
     if (!pageId) {
-      this.sendError(session.ws, data?.requestId, 'Page ID is required');
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
       return;
     }
 
     const page = session.pages.get(pageId);
     if (!page) {
-      this.sendError(session.ws, data?.requestId, 'Page not found');
+      this.sendError(session.ws, message?.requestId, 'Page not found');
       return;
     }
 
     try {
+      logger.info(`Starting navigation to ${data.url}`);
       await page.navigate(data.url, data.options);
+      logger.info(`Navigation completed, sending response`);
       
       this.sendResponse(session.ws, {
         type: 'navigated',
-        requestId: data?.requestId,
+        requestId: message?.requestId,
         success: true,
         data: { pageId, url: data.url }
       });
-
-      // 推送页面加载完成事件
-      this.pushEvent(session, pageId, 'load', { url: data.url });
+      logger.info(`Navigated response sent`);
     } catch (error) {
-      this.sendError(session.ws, data?.requestId, error instanceof Error ? error.message : 'Failed to navigate');
+      logger.error(`Navigation error: ${error}`);
+      this.sendError(session.ws, message?.requestId, `Navigation failed: ${error}`);
     }
   }
 
@@ -376,18 +398,20 @@ export class BrowserWebSocketServer {
     }
   }
 
-  private async getTitle(sessionId: string, pageId?: string): Promise<void> {
+private async getTitle(sessionId: string, message: any): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
+    const pageId = message.pageId;
+
     if (!pageId) {
-      this.sendError(session.ws, undefined, 'Page ID is required');
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
       return;
     }
 
     const page = session.pages.get(pageId);
     if (!page) {
-      this.sendError(session.ws, undefined, 'Page not found');
+      this.sendError(session.ws, message?.requestId, 'Page not found');
       return;
     }
 
@@ -396,11 +420,12 @@ export class BrowserWebSocketServer {
       
       this.sendResponse(session.ws, {
         type: 'title',
+        requestId: message?.requestId,
         success: true,
         data: { pageId, title }
       });
     } catch (error) {
-      this.sendError(session.ws, undefined, error instanceof Error ? error.message : 'Failed to get title');
+      this.sendError(session.ws, message?.requestId, `Get title failed: ${error}`);
     }
   }
 
@@ -836,7 +861,11 @@ export class BrowserWebSocketServer {
 
   private sendResponse(ws: WebSocket | undefined, response: WebSocketResponse): void {
     if (ws && ws.readyState === WebSocket.OPEN) {
+      logger.info(`Sending WebSocket response: type=${response.type}, requestId=${response.requestId}`);
       ws.send(JSON.stringify(response));
+      logger.info(`WebSocket response sent: type=${response.type}`);
+    } else {
+      logger.warn(`WebSocket not ready: ws=${!!ws}, readyState=${ws?.readyState}, type=${response.type}`);
     }
   }
 

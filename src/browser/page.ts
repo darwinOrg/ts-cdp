@@ -26,6 +26,7 @@ export class BrowserPage {
   private suspended: boolean;
   private pendingPages: BrowserPage[];
   private responseListeners: Map<string, (response: any) => void>;
+  private initialized: boolean;
 
   constructor(cdpClient: CDPClient, options: PageOptions = {}) {
     this.cdpClient = cdpClient;
@@ -42,11 +43,27 @@ export class BrowserPage {
     this.suspended = false;
     this.pendingPages = [];
     this.responseListeners = new Map();
+    this.initialized = false;
+  }
+
+  async init(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      if (this.page) await this.page.enable();
+      if (this.runtime) await this.runtime.enable();
+      if (this.dom) await this.dom.enable();
+      if (this.network) await this.network.enable();
+      this.initialized = true;
+    } catch (error) {
+      logger.error(`Failed to initialize page: ${error}`);
+      throw error;
+    }
   }
 
   async navigate(url: string, options: NavigateOptions = {}): Promise<void> {
     this.checkSuspend();
-    
+
     const opts = {
       waitUntil: 'load' as const,
       timeout: this.options.timeout,
@@ -55,10 +72,23 @@ export class BrowserPage {
 
     if (!this.page) throw new Error('Page not initialized');
 
+    // 确保 Page 领域已启用
+    try {
+      await this.page.enable();
+      logger.info(`Page.enable() called for ${this.options.name}`);
+    } catch (error) {
+      // 忽略错误，可能已经启用
+      logger.info(`Page.enable() failed (may already be enabled): ${error}`);
+    }
+
+    logger.info(`Navigating to ${url} with waitUntil=${opts.waitUntil}`);
     await this.page.navigate({ url });
-    
+    logger.info(`Navigation to ${url} completed`);
+
     if (opts.waitUntil === 'domcontentloaded') {
+      logger.info(`Waiting for DOMContentLoaded`);
       await this.waitForDOMContentLoaded(opts.timeout);
+      logger.info(`DOMContentLoaded received`);
     } else if (opts.waitUntil === 'networkidle') {
       await this.waitForNetworkIdle(opts.timeout);
     } else {
@@ -68,7 +98,7 @@ export class BrowserPage {
 
   async reload(options: NavigateOptions = {}): Promise<void> {
     this.checkSuspend();
-    
+
     const opts = {
       waitUntil: 'load' as const,
       timeout: this.options.timeout,
@@ -92,6 +122,8 @@ export class BrowserPage {
     const timeoutMs = timeout || this.options.timeout || 10000;
     const startTime = Date.now();
 
+    logger.info(`waitForLoadState: waiting for ${state}, timeout=${timeoutMs}ms`);
+
     return new Promise((resolve, reject) => {
       const checkState = async () => {
         if (Date.now() - startTime > timeoutMs) {
@@ -100,23 +132,29 @@ export class BrowserPage {
         }
 
         try {
-          const metric = await this.page?.getMetrics();
-          if (!metric) {
-            setTimeout(checkState, 100);
-            return;
-          }
+          // 使用 Runtime.evaluate 检查 document.readyState
+          const result = await this.runtime?.evaluate({
+            expression: `document.readyState`
+          });
 
-          if (state === 'domcontentloaded' && metric.DomContentLoaded > 0) {
+          const readyState = result?.result?.value;
+          logger.info(`waitForLoadState: state=${state}, readyState=${readyState}, waiting for ${state}`);
+
+          if (state === 'domcontentloaded' && (readyState === 'interactive' || readyState === 'complete')) {
+            logger.info(`waitForLoadState: resolving for domcontentloaded`);
             resolve();
-          } else if (state === 'load' && metric.Load > 0) {
+          } else if (state === 'load' && readyState === 'complete') {
+            logger.info(`waitForLoadState: resolving for load, readyState=${readyState}`);
             resolve();
           } else if (state === 'networkidle') {
             // 简化的 networkidle 检查
             resolve();
           } else {
+            logger.info(`waitForLoadState: not ready yet, waiting...`);
             setTimeout(checkState, 100);
           }
         } catch (error) {
+          logger.warn(`waitForLoadState: error checking readyState: ${error}`);
           setTimeout(checkState, 100);
         }
       };
