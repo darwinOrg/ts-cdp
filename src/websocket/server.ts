@@ -184,6 +184,58 @@ export class BrowserWebSocketServer {
         await this.elementCount(sessionId, message.pageId, message.data);
         break;
       
+      
+      case 'navigate_with_loaded_state':
+        await this.navigateWithLoadedState(sessionId, message);
+        break;
+      
+      case 'reload_with_loaded_state':
+        await this.reloadWithLoadedState(sessionId, message);
+        break;
+      
+      case 'wait_for_load_state_load':
+        await this.waitForLoadStateLoad(sessionId, message);
+        break;
+      
+      case 'wait_for_dom_content_loaded':
+        await this.waitForDomContentLoaded(sessionId, message);
+        break;
+      
+      case 'wait_for_selector_state_visible':
+        await this.waitForSelectorStateVisible(sessionId, message);
+        break;
+      
+      case 'expect_response_text':
+        await this.expectResponseText(sessionId, message);
+        break;
+      
+      case 'must_inner_text':
+        await this.mustInnerText(sessionId, message);
+        break;
+      
+      case 'must_text_content':
+        await this.mustTextContent(sessionId, message);
+        break;
+      
+      case 'suspend':
+        await this.suspend(sessionId, message);
+        break;
+      
+      case 'continue':
+        await this.continue(sessionId, message);
+        break;
+      
+      case 'release':
+        await this.release(sessionId, message);
+        break;
+      
+      case 'close_all':
+        await this.closeAll(sessionId, message);
+        break;
+      
+      case 'expect_ext_page':
+        await this.expectExtPage(sessionId, message);
+        break;
       default:
         this.sendError(ws, message.requestId, `Unknown message type: ${message.type}`);
     }
@@ -902,5 +954,402 @@ private async getTitle(sessionId: string, message: any): Promise<void> {
 
     this.wss.close();
     logger.info('WebSocket server stopped');
+  }
+
+  private async navigateWithLoadedState(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.navigateWithLoadedState(message.data?.url);
+      
+      this.sendResponse(session.ws, {
+        type: 'navigated_with_loaded_state',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to navigate with loaded state');
+    }
+  }
+
+  private async reloadWithLoadedState(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.reloadWithLoadedState();
+      
+      this.sendResponse(session.ws, {
+        type: 'reloaded_with_loaded_state',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to reload with loaded state');
+    }
+  }
+
+  private async waitForLoadStateLoad(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.waitForLoadStateLoad();
+      
+      this.sendResponse(session.ws, {
+        type: 'load_state_loaded',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to wait for load state');
+    }
+  }
+
+  private async waitForDomContentLoaded(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.waitForDomContentLoaded();
+      
+      this.sendResponse(session.ws, {
+        type: 'dom_content_loaded',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to wait for DOM content loaded');
+    }
+  }
+
+  private async waitForSelectorStateVisible(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.waitForSelectorStateVisible(message.data?.selector);
+      
+      this.sendResponse(session.ws, {
+        type: 'selector_visible',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to wait for selector');
+    }
+  }
+
+  private async expectResponseText(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      const text = await page.expectResponseText(
+        message.data?.urlOrPredicate,
+        async () => {
+          // 执行回调函数
+          if (message.data?.callback) {
+            await page.executeScript(message.data.callback);
+          }
+        }
+      );
+      
+      this.sendResponse(session.ws, {
+        type: 'response_text',
+        requestId: message?.requestId,
+        success: true,
+        data: { text }
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to expect response text');
+    }
+  }
+
+  private async mustInnerText(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      const text = await page.mustInnerText(message.data?.selector);
+      
+      this.sendResponse(session.ws, {
+        type: 'inner_text',
+        requestId: message?.requestId,
+        success: true,
+        data: { text }
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to get inner text');
+    }
+  }
+
+  private async mustTextContent(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      const text = await page.mustTextContent(message.data?.selector);
+      
+      this.sendResponse(session.ws, {
+        type: 'text_content',
+        requestId: message?.requestId,
+        success: true,
+        data: { text }
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to get text content');
+    }
+  }
+
+  private async suspend(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      page.suspend();
+      
+      this.sendResponse(session.ws, {
+        type: 'suspended',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to suspend');
+    }
+  }
+
+  private async continue(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      page.continue();
+      
+      this.sendResponse(session.ws, {
+        type: 'continued',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to continue');
+    }
+  }
+
+  private async release(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      page.release();
+      
+      this.sendResponse(session.ws, {
+        type: 'released',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to release');
+    }
+  }
+
+  private async closeAll(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      await page.closeAll();
+      
+      this.sendResponse(session.ws, {
+        type: 'all_closed',
+        requestId: message?.requestId,
+        success: true
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to close all');
+    }
+  }
+
+  private async expectExtPage(sessionId: string, message: any): Promise<void> {
+    const session = this.sessions.get(sessionId);
+    if (!session) return;
+
+    const pageId = message.pageId;
+    if (!pageId) {
+      this.sendError(session.ws, message?.requestId, 'Page ID is required');
+      return;
+    }
+
+    const page = session.pages.get(pageId);
+    if (!page) {
+      this.sendError(session.ws, message?.requestId, 'Page not found');
+      return;
+    }
+
+    try {
+      const newPage = await page.expectExtPage(async () => {
+        // 执行回调函数
+        if (message.data?.callback) {
+          await page.executeScript(message.data.callback);
+        }
+      });
+      
+      const newPageId = `page-${Date.now()}`;
+      session.pages.set(newPageId, newPage);
+      
+      this.sendResponse(session.ws, {
+        type: 'ext_page_expected',
+        requestId: message?.requestId,
+        success: true,
+        data: { pageId: newPageId }
+      });
+    } catch (error) {
+      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to expect ext page');
+    }
   }
 }

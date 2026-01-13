@@ -542,4 +542,13 @@ export class BrowserPage {
   async expectExtPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return this.expectNewPage(callback);
   }
-}
+
+  // IsClosed - 检查页面是否已关闭
+  isClosed(): boolean {
+    try {
+      return !this.client || !this.client.Page;
+    } catch {
+      return true;
+    }
+  }
+}export { BrowserLocator } from './locator';

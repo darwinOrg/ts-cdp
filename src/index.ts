@@ -1,4 +1,6 @@
 export { CDPClient } from './browser/client';
+export { BrowserContext } from './browser/context';
+export { BrowserPage, BrowserLocator } from './browser/page';
 export { NetworkListener } from './network/listener';
 export { Launcher, launch, getChromePath, LaunchOptions, ChromeInstance } from './launcher';
 export { createLogger, Logger, LogLevel } from './utils/logger';
