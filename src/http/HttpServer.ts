@@ -61,7 +61,7 @@ export class BrowserHttpServer {
     // 启动浏览器
     this.app.post('/api/browser/start', async (req: Request, res: Response) => {
       try {
-        const { sessionId, headless = true } = req.body;
+        const { sessionId, headless = false } = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
