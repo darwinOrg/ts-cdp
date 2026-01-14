@@ -11,8 +11,7 @@
     "lint": "eslint src/**/*.ts",
     "clean": "rm -rf dist",
     "server": "ts-node src/http/index.ts",
-    "ws-server": "ts-node src/websocket/index.ts",
-    "browser-controller": "ts-node src/http/browser-controller.ts"
+    "ws-server": "ts-node src/websocket/index.ts"
   },
   "keywords": [
     "chrome",
