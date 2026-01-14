@@ -100,6 +100,10 @@ export class BrowserWebSocketServer {
         await this.startBrowser(ws, sessionId, message);
         break;
       
+      case 'connect_browser':
+        await this.connectBrowser(ws, sessionId, message);
+        break;
+      
       case 'stop_browser':
         await this.stopBrowser(sessionId, message);
         break;
@@ -274,6 +278,39 @@ export class BrowserWebSocketServer {
     }
   }
 
+  private async connectBrowser(ws: WebSocket, sessionId: string, message: any): Promise<void> {
+    try {
+      const port = message.data?.port || 9222;
+      const client = new CDPClient({ 
+        port: port, 
+        name: sessionId 
+      });
+      await client.connect();
+
+      const session: BrowserSession = {
+        sessionId,
+        chrome: null, // 连接到现有浏览器，不需要 chrome 实例
+        client,
+        pages: new Map(),
+        ws
+      };
+
+      this.sessions.set(sessionId, session);
+
+      this.sendResponse(ws, {
+        type: 'browser_connected',
+        requestId: message?.requestId,
+        success: true,
+        data: {
+          sessionId,
+          port
+        }
+      });
+    } catch (error) {
+      this.sendError(ws, message?.requestId, error instanceof Error ? error.message : 'Failed to connect to browser');
+    }
+  }
+
   private async stopBrowser(sessionId: string, message?: any): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
@@ -293,7 +330,11 @@ export class BrowserWebSocketServer {
     }
 
     session.client.close();
-    session.chrome.kill();
+    
+    // 只有在启动的浏览器时才需要 kill 进程
+    if (session.chrome) {
+      session.chrome.kill();
+    }
 
     this.sessions.delete(sessionId);
 
