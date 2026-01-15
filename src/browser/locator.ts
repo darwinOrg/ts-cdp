@@ -10,11 +10,13 @@ export interface LocatorOptions {
 export class BrowserLocator {
   private page: BrowserPage;
   private selector: string;
+  private selectorChain: string[]; // 添加选择器链
   private options: LocatorOptions;
 
-  constructor(page: BrowserPage, selector: string, options: LocatorOptions = {}) {
+  constructor(page: BrowserPage, selector: string, options: LocatorOptions = {}, selectorChain: string[] = []) {
     this.page = page;
     this.selector = selector;
+    this.selectorChain = [...selectorChain, selector]; // 保存选择器链
     this.options = {
       timeout: 10000,
       ...options
@@ -226,7 +228,12 @@ export class BrowserLocator {
 
   // ExtLocator - 嵌套定位器
   extLocator(selector: string): BrowserLocator {
-    return new BrowserLocator(this.page, `${this.selector} ${selector}`, this.options);
+    return new BrowserLocator(
+      this.page, 
+      `${this.selector} ${selector}`, 
+      this.options,
+      this.selectorChain // 传递选择器链
+    );
   }
 
   // ExtAll - 获取所有匹配的元素
@@ -236,8 +243,9 @@ export class BrowserLocator {
 
     const locators: BrowserLocator[] = [];
     for (let i = 0; i < count; i++) {
-      const indexSelector = `${this.selector}:nth-child(${i + 1})`;
-      locators.push(new BrowserLocator(this.page, indexSelector, this.options));
+      // 使用 :nth-of-type 而不是 :nth-child，更准确地选择匹配的元素
+      const indexSelector = `${this.selector}:nth-of-type(${i + 1})`;
+      locators.push(new BrowserLocator(this.page, indexSelector, this.options, this.selectorChain));
     }
     return locators;
   }
@@ -283,6 +291,21 @@ export class BrowserLocator {
 
   // GetSelectors - 获取选择器链
   getSelectors(): string[] {
-    return [this.selector];
+    return this.selectorChain;
+  }
+
+  // Suspend - 暂停页面
+  suspend(): void {
+    this.page['suspend']();
+  }
+
+  // Continue - 继续页面
+  continue(): void {
+    this.page['continue']();
+  }
+
+  // CheckSuspend - 检查暂停状态
+  async checkSuspend(): Promise<void> {
+    await this.page['checkSuspend']();
   }
 }
