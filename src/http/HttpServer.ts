@@ -344,7 +344,7 @@ export class BrowserHttpServer {
         const page = this.getPage(session, pageId as string);
         const title = await page.getTitle();
 
-        res.json({ success: true, title });
+        res.json({ success: true, data: { title } });
       } catch (error) {
         logger.error('Failed to get title:', error);
         res.status(500).json({
@@ -373,7 +373,7 @@ export class BrowserHttpServer {
         const page = this.getPage(session, pageId as string);
         const url = await page.getUrl();
 
-        res.json({ success: true, url });
+        res.json({ success: true, data: { url } });
       } catch (error) {
         logger.error('Failed to get URL:', error);
         res.status(500).json({
@@ -580,7 +580,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const exists = await locator.exists();
 
-        res.json({ success: true, exists });
+        res.json({ success: true, data: { exists } });
       } catch (error) {
         logger.error('Failed to check element exists:', error);
         res.status(500).json({
@@ -610,7 +610,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const text = await locator.getText();
 
-        res.json({ success: true, text });
+        res.json({ success: true, data: { text } });
       } catch (error) {
         logger.error('Failed to get element text:', error);
         res.status(500).json({
@@ -730,7 +730,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const value = await locator.getAttribute(attribute);
 
-        res.json({ success: true, value });
+        res.json({ success: true, data: { value } });
       } catch (error) {
         logger.error('Failed to get element attribute:', error);
         res.status(500).json({
@@ -814,7 +814,7 @@ export class BrowserHttpServer {
           }
         );
 
-        res.json({ success: true, text });
+        res.json({ success: true, data: { text } });
       } catch (error) {
         logger.error('Failed to expect response text:', error);
         res.status(500).json({
@@ -843,7 +843,7 @@ export class BrowserHttpServer {
         const page = this.getPage(session, pageId);
         const text = await page.mustInnerText(selector);
 
-        res.json({ success: true, text });
+        res.json({ success: true, data: { text } });
       } catch (error) {
         logger.error('Failed to get inner text:', error);
         res.status(500).json({
@@ -872,7 +872,7 @@ export class BrowserHttpServer {
         const page = this.getPage(session, pageId);
         const text = await page.mustTextContent(selector);
 
-        res.json({ success: true, text });
+        res.json({ success: true, data: { text } });
       } catch (error) {
         logger.error('Failed to get text content:', error);
         res.status(500).json({
@@ -1053,7 +1053,7 @@ export class BrowserHttpServer {
         const page = this.getPage(session, pageId as string);
         const html = await page.getHTML();
 
-        res.json({ success: true, html });
+        res.json({ success: true, data: { html } });
       } catch (error) {
         logger.error('Failed to get HTML:', error);
         res.status(500).json({
@@ -1083,7 +1083,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const texts = await locator.mustAllInnerTexts();
 
-        res.json({ success: true, texts });
+        res.json({ success: true, data: { texts } });
       } catch (error) {
         logger.error('Failed to get all element texts:', error);
         res.status(500).json({
@@ -1113,7 +1113,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const attributes = await locator.mustAllGetAttributes(attribute);
 
-        res.json({ success: true, attributes });
+        res.json({ success: true, data: { attributes } });
       } catch (error) {
         logger.error('Failed to get all element attributes:', error);
         res.status(500).json({
@@ -1143,7 +1143,7 @@ export class BrowserHttpServer {
         const locator = page.locator(selector);
         const count = await locator.getCount();
 
-        res.json({ success: true, count });
+        res.json({ success: true, data: { count } });
       } catch (error) {
         logger.error('Failed to get element count:', error);
         res.status(500).json({
