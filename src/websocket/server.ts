@@ -221,14 +221,6 @@ export class BrowserWebSocketServer {
         await this.mustTextContent(sessionId, message);
         break;
       
-      case 'suspend':
-        await this.suspend(sessionId, message);
-        break;
-      
-      case 'continue':
-        await this.continue(sessionId, message);
-        break;
-      
       case 'release':
         await this.release(sessionId, message);
         break;
@@ -1237,64 +1229,6 @@ private async getTitle(sessionId: string, message: any): Promise<void> {
       });
     } catch (error) {
       this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to get text content');
-    }
-  }
-
-  private async suspend(sessionId: string, message: any): Promise<void> {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const pageId = message.pageId;
-    if (!pageId) {
-      this.sendError(session.ws, message?.requestId, 'Page ID is required');
-      return;
-    }
-
-    const page = session.pages.get(pageId);
-    if (!page) {
-      this.sendError(session.ws, message?.requestId, 'Page not found');
-      return;
-    }
-
-    try {
-      page.suspend();
-      
-      this.sendResponse(session.ws, {
-        type: 'suspended',
-        requestId: message?.requestId,
-        success: true
-      });
-    } catch (error) {
-      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to suspend');
-    }
-  }
-
-  private async continue(sessionId: string, message: any): Promise<void> {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    const pageId = message.pageId;
-    if (!pageId) {
-      this.sendError(session.ws, message?.requestId, 'Page ID is required');
-      return;
-    }
-
-    const page = session.pages.get(pageId);
-    if (!page) {
-      this.sendError(session.ws, message?.requestId, 'Page not found');
-      return;
-    }
-
-    try {
-      page.continue();
-      
-      this.sendResponse(session.ws, {
-        type: 'continued',
-        requestId: message?.requestId,
-        success: true
-      });
-    } catch (error) {
-      this.sendError(session.ws, message?.requestId, error instanceof Error ? error.message : 'Failed to continue');
     }
   }
 

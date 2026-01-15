@@ -318,19 +318,4 @@ export class BrowserLocator {
   getSelectors(): string[] {
     return this.selectorChain;
   }
-
-  // Suspend - 暂停页面
-  suspend(): void {
-    this.page['suspend']();
-  }
-
-  // Continue - 继续页面
-  continue(): void {
-    this.page['continue']();
-  }
-
-  // CheckSuspend - 检查暂停状态
-  async checkSuspend(): Promise<void> {
-    await this.page['checkSuspend']();
-  }
 }

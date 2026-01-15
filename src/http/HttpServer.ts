@@ -913,63 +913,6 @@ export class BrowserHttpServer {
     });
 
     // 暂停
-    this.app.post('/api/page/suspend', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        const page = this.getPage(session, pageId);
-        page.suspend();
-
-        res.json({ success: true });
-      } catch (error) {
-        logger.error('Failed to suspend:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // 继续
-    this.app.post('/api/page/continue', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        const page = this.getPage(session, pageId);
-        page.continue();
-
-        res.json({ success: true });
-      } catch (error) {
-        logger.error('Failed to continue:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
     // 释放
     this.app.post('/api/page/release', async (req: Request, res: Response) => {
       try {

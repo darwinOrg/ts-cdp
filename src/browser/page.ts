@@ -23,7 +23,6 @@ export class BrowserPage {
   private network: any;
   private options: PageOptions;
   private locked: boolean;
-  private suspended: boolean;
   private pendingPages: BrowserPage[];
   private responseListeners: Map<string, (response: any) => void>;
   private initialized: boolean;
@@ -40,7 +39,6 @@ export class BrowserPage {
       ...options
     };
     this.locked = false;
-    this.suspended = false;
     this.pendingPages = [];
     this.responseListeners = new Map();
     this.initialized = false;
@@ -62,8 +60,6 @@ export class BrowserPage {
   }
 
   async navigate(url: string, options: NavigateOptions = {}): Promise<void> {
-    this.checkSuspend();
-
     const opts = {
       waitUntil: 'load' as const,
       timeout: this.options.timeout,
@@ -97,8 +93,6 @@ export class BrowserPage {
   }
 
   async reload(options: NavigateOptions = {}): Promise<void> {
-    this.checkSuspend();
-
     const opts = {
       waitUntil: 'load' as const,
       timeout: this.options.timeout,
@@ -276,8 +270,6 @@ export class BrowserPage {
   }
 
   async click(selector: string): Promise<void> {
-    this.checkSuspend();
-    
     const locator = this.locator(selector);
     if (await locator.exists()) {
       await locator.click();
@@ -341,20 +333,6 @@ export class BrowserPage {
     await new Promise(resolve => setTimeout(resolve, delay));
   }
 
-  suspend(): void {
-    this.suspended = true;
-  }
-
-  continue(): void {
-    this.suspended = false;
-  }
-
-  async checkSuspend(): Promise<void> {
-    while (this.suspended) {
-      await this.randomWaitMiddle();
-    }
-  }
-
   lock(): void {
     this.locked = true;
   }
@@ -375,8 +353,6 @@ export class BrowserPage {
 
   // ExpectExtPage - 等待新页面打开
   async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
-    this.checkSuspend();
-    
     return new Promise((resolve, reject) => {
       const targetUrlPattern = '**';
       
@@ -409,8 +385,6 @@ export class BrowserPage {
 
   // ExpectResponseText - 等待特定响应
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
-    this.checkSuspend();
-    
     return new Promise((resolve, reject) => {
       const urlPattern = urlOrPredicate;
       const responseListener = (params: any) => {
@@ -491,8 +465,6 @@ export class BrowserPage {
 
   // NavigateWithLoadedState - 导航并等待加载完成
   async navigateWithLoadedState(url: string): Promise<void> {
-    this.checkSuspend();
-    
     try {
       await this.page.navigate({ url });
       await this.waitForLoadState('load');
@@ -505,7 +477,6 @@ export class BrowserPage {
 
   // ReloadWithLoadedState - 刷新并等待加载完成
   async reloadWithLoadedState(): Promise<void> {
-    this.checkSuspend();
     
     try {
       await this.page.reload();
