@@ -114,6 +114,31 @@ export class BrowserLocator {
     }
   }
 
+  async hover(): Promise<void> {
+    if (!(await this.exists())) {
+      throw new Error(`Element not found: ${this.selector}`);
+    }
+
+    try {
+      await this.page['executeScript'](
+        `
+        const el = document.querySelector('${this.selector}');
+        if (el) {
+          const event = new MouseEvent('mouseover', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          el.dispatchEvent(event);
+        }
+        `
+      );
+    } catch (error) {
+      logger.error(`locator[${this.selector}] hover error:`, error);
+      throw error;
+    }
+  }
+
   async setValue(value: string): Promise<void> {
     if (!(await this.exists())) {
       throw new Error(`Element not found: ${this.selector}`);

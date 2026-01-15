@@ -650,6 +650,36 @@ export class BrowserHttpServer {
       }
     });
 
+    // 鼠标悬停
+    this.app.post('/api/element/hover', async (req: Request, res: Response) => {
+      try {
+        const { sessionId, selector, pageId } = req.body;
+
+        if (!sessionId || !selector) {
+          res.status(400).json({ success: false, error: 'sessionId and selector are required' });
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({ success: false, error: 'Session not found' });
+          return;
+        }
+
+        const page = this.getPage(session, pageId);
+        const locator = page.locator(selector);
+        await locator.hover();
+
+        res.json({ success: true });
+      } catch (error) {
+        logger.error('Failed to hover element:', error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    });
+
     // 设置元素值
     this.app.post('/api/element/setValue', async (req: Request, res: Response) => {
       try {
