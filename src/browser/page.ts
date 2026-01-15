@@ -315,24 +315,6 @@ export class BrowserPage {
     return result?.result?.value || '';
   }
 
-  randomWaitShort(): Promise<void> {
-    return this.randomWaitRange(100, 1000);
-  }
-
-  randomWaitMiddle(): Promise<void> {
-    return this.randomWaitRange(3000, 6000);
-  }
-
-  randomWaitLong(): Promise<void> {
-    return this.randomWaitRange(10000, 20000);
-  }
-
-  async randomWaitRange(min: number, max: number): Promise<void> {
-    const delay = Math.floor(Math.random() * (max - min)) + min;
-    logger.debug(`等待 ${delay} 毫秒`);
-    await new Promise(resolve => setTimeout(resolve, delay));
-  }
-
   lock(): void {
     this.locked = true;
   }

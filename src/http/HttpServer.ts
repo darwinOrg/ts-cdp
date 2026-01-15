@@ -778,46 +778,6 @@ export class BrowserHttpServer {
 
     // ========== 新增的 Playwright 常用功能 ==========
 
-    // 随机等待
-    this.app.post('/api/page/random-wait', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, duration, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        const page = this.getPage(session, pageId);
-        
-        if (duration === 'short') {
-          await page.randomWaitShort();
-        } else if (duration === 'middle') {
-          await page.randomWaitMiddle();
-        } else if (duration === 'long') {
-          await page.randomWaitLong();
-        } else if (typeof duration === 'number') {
-          await page.randomWaitRange(duration, duration + 1000);
-        } else {
-          await page.randomWaitMiddle();
-        }
-
-        res.json({ success: true });
-      } catch (error) {
-        logger.error('Failed to random wait:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
     // 期望响应文本
     this.app.post('/api/page/expect-response-text', async (req: Request, res: Response) => {
       try {

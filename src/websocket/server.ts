@@ -168,10 +168,6 @@ export class BrowserWebSocketServer {
         await this.subscribeEvents(sessionId, message.pageId, message.data);
         break;
       
-      case 'random_wait':
-        await this.randomWait(sessionId, message.pageId, message.data);
-        break;
-      
       case 'get_html':
         await this.getHTML(sessionId, message.pageId, message.data);
         break;
@@ -744,47 +740,6 @@ private async getTitle(sessionId: string, message: any): Promise<void> {
       });
     } catch (error) {
       this.sendError(session.ws, data?.requestId, error instanceof Error ? error.message : 'Failed to get element attribute');
-    }
-  }
-
-  private async randomWait(sessionId: string, pageId?: string, data?: any): Promise<void> {
-    const session = this.sessions.get(sessionId);
-    if (!session) return;
-
-    if (!pageId) {
-      this.sendError(session.ws, data?.requestId, 'Page ID is required');
-      return;
-    }
-
-    const page = session.pages.get(pageId);
-    if (!page) {
-      this.sendError(session.ws, data?.requestId, 'Page not found');
-      return;
-    }
-
-    try {
-      const duration = data?.duration || 'middle';
-      
-      if (duration === 'short') {
-        await page.randomWaitShort();
-      } else if (duration === 'middle') {
-        await page.randomWaitMiddle();
-      } else if (duration === 'long') {
-        await page.randomWaitLong();
-      } else if (typeof duration === 'number') {
-        await page.randomWaitRange(duration, duration + 1000);
-      } else {
-        await page.randomWaitMiddle();
-      }
-      
-      this.sendResponse(session.ws, {
-        type: 'random_waited',
-        requestId: data?.requestId,
-        success: true,
-        data: { pageId, duration }
-      });
-    } catch (error) {
-      this.sendError(session.ws, data?.requestId, error instanceof Error ? error.message : 'Failed to random wait');
     }
   }
 
