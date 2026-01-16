@@ -47,7 +47,13 @@ const DEFAULT_FLAGS = [
   '--force-fieldtrials=*BackgroundTracing/default/',
   '--disable-hang-monitor',
   '--disable-prompt-on-repost',
-  '--disable-domain-reliability'
+  '--disable-domain-reliability',
+  '--disable-blink-features=AutomationControlled',
+  '--disable-dev-shm-usage',
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-web-security',
+  '--disable-features=VizDisplayCompositor'
 ];
 
 export class Launcher {

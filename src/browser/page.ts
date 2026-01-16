@@ -379,56 +379,41 @@ export class BrowserPage {
   // ExpectResponseText - 等待特定响应
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
     return new Promise((resolve, reject) => {
-      const urlPattern = urlOrPredicate;
+      // 将 ** 转换为 .* 用于正则匹配
+      const urlPattern = urlOrPredicate.replace(/\*\*/g, '.*');
       let listenerActive = false; // 初始状态为不活跃
       let listenerCalled = false; // 标记监听器是否被调用
       
-      logger.debug(`expectResponseText: starting for ${urlPattern}`);
+      logger.debug(`expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`);
       
-      const responseListener = async (params: any) => {
+      const responseCallback = (body: string) => {
         listenerCalled = true;
-        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}`);
+        logger.debug(`expectResponseText: response callback triggered for ${urlOrPredicate}`);
         
         if (!listenerActive) {
-          logger.debug(`expectResponseText: ignoring event, listener not active`);
           return;
         }
         
-        // 检查 type 字段，只处理 XHR 请求
-        const type = params.type;
-        if (type !== 'XHR') {
-          return;
-        }
+        listenerActive = false;
         
-        const response = params.response;
-        logger.debug(`expectResponseText: XHR responseReceived for ${response.url}`);
-        
-        if (response.url.includes(urlPattern)) {
-          listenerActive = false;
-          logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
-          
-          // 获取响应体
-          this.client.Network.getResponseBody({ requestId: params.requestId })
-            .then((result: any) => {
-              const text = result.body;
-              if (text) {
-                logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
-                resolve(text);
-              } else {
-                logger.error(`expectResponseText: response body is empty`);
-                reject(new Error('Response body is empty'));
-              }
-            })
-            .catch((err: any) => {
-              logger.error(`expectResponseText: failed to get response body: ${err}`);
-              reject(err);
-            });
+        if (body) {
+          logger.debug(`expectResponseText: matched ${urlOrPredicate} at ${new Date().toISOString()}, body length: ${body.length}`);
+          resolve(body);
+        } else {
+          logger.error(`expectResponseText: response body is empty`);
+          reject(new Error('Response body is empty'));
         }
       };
       
-      // 先添加监听器（但不处理事件）
-      logger.debug(`expectResponseText: adding response listener`);
-      this.client.Network.responseReceived(responseListener);
+      // 使用 NetworkListener 的回调机制
+      const networkListener = this.cdpClient.getNetworkListener();
+      if (networkListener) {
+        networkListener.addResponseReceivedCallback(urlPattern, responseCallback);
+        logger.debug(`expectResponseText: added callback for pattern ${urlPattern}`);
+      } else {
+        reject(new Error('NetworkListener not initialized'));
+        return;
+      }
       
       // 执行回调
       callback()
@@ -440,12 +425,21 @@ export class BrowserPage {
           // 设置超时检查
           setTimeout(() => {
             if (listenerActive && !listenerCalled) {
-              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlPattern}`);
+              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlOrPredicate}`);
+              // 清理回调
+              if (networkListener) {
+                networkListener.removeResponseReceivedCallback(urlPattern);
+              }
+              reject(new Error(`Timeout waiting for response: ${urlOrPredicate}`));
             }
           }, 10000);
         })
         .catch((err: any) => {
           logger.error(`expectResponseText: callback failed: ${err}`);
+          // 清理回调
+          if (networkListener) {
+            networkListener.removeResponseReceivedCallback(urlPattern);
+          }
           reject(err);
         });
     });

@@ -18,6 +18,8 @@ export class CDPClient {
   private config: CDPClientConfig;
   private options: CDPClientOptions;
   private currentUrl: string;
+  private lastLoginStateChangeTime: number;
+  private loginStateChangeTimeout: NodeJS.Timeout | null;
 
   constructor(config: CDPClientConfig, options: Partial<CDPClientOptions> = {}) {
     this.config = config;
@@ -29,6 +31,8 @@ export class CDPClient {
     this.client = null;
     this.networkListener = null;
     this.currentUrl = '';
+    this.lastLoginStateChangeTime = 0;
+    this.loginStateChangeTimeout = null;
   }
 
   async connect(): Promise<CDP.Client> {
@@ -126,15 +130,57 @@ export class CDPClient {
 
   private handleNavigation(newUrl: string, loginUrl: string, targetPrefix: string): void {
     const prevUrl = this.currentUrl;
-    
-    if (prevUrl.startsWith(targetPrefix) && !newUrl.startsWith(targetPrefix)) {
-      logger.info('User logged out', { prevUrl, newUrl });
-      this.config.loginCallback?.('logout');
-    } else if (prevUrl === loginUrl && newUrl.startsWith(targetPrefix)) {
-      logger.info('User logged in', { newUrl });
-      this.config.loginCallback?.('login');
+    const currentTime = Date.now();
+
+    // 防止相同URL的重复处理
+    if (prevUrl === newUrl) {
+      this.currentUrl = newUrl;
+      return;
     }
-    
+
+    // 防抖动：如果距离上次状态变更不到1秒，则忽略
+    if (currentTime - this.lastLoginStateChangeTime < 1000) {
+      logger.debug('Skipping navigation due to debounce', { prevUrl, newUrl, timeDiff: currentTime - this.lastLoginStateChangeTime });
+      this.currentUrl = newUrl;
+      return;
+    }
+
+    // 检查是否是从目标页面导航离开（表示登出）
+    if (prevUrl.startsWith(targetPrefix) && !newUrl.startsWith(targetPrefix) && newUrl !== loginUrl) {
+      logger.info('User logged out', { prevUrl, newUrl });
+
+      // 更新最后状态变更时间
+      this.lastLoginStateChangeTime = currentTime;
+
+      // 添加一个小延迟，防止立即的页面跳转造成干扰
+      if (this.loginStateChangeTimeout) {
+        clearTimeout(this.loginStateChangeTimeout);
+      }
+      this.loginStateChangeTimeout = setTimeout(() => {
+        this.config.loginCallback?.('logout');
+      }, 100);
+    }
+    // 检查是否从登录页面导航到目标页面（表示登录）
+    else if (prevUrl === loginUrl && newUrl.startsWith(targetPrefix)) {
+      logger.info('User logged in', { newUrl });
+
+      // 更新最后状态变更时间
+      this.lastLoginStateChangeTime = currentTime;
+
+      // 添加一个小延迟，防止立即的页面跳转造成干扰
+      if (this.loginStateChangeTimeout) {
+        clearTimeout(this.loginStateChangeTimeout);
+      }
+      this.loginStateChangeTimeout = setTimeout(() => {
+        this.config.loginCallback?.('login');
+      }, 100);
+    }
+    // 检查是否从非登录页直接跳转到目标页面（可能是已经登录的情况）
+    else if (!prevUrl.startsWith(loginUrl) && newUrl.startsWith(targetPrefix) && prevUrl !== newUrl) {
+      // 可能是直接导航到目标页面，不一定是登录
+      logger.debug('Navigated to target page', { prevUrl, newUrl });
+    }
+
     this.currentUrl = newUrl;
   }
 
@@ -201,6 +247,10 @@ export class CDPClient {
   async close(): Promise<void> {
     if (this.client) {
       this.networkListener?.clearCallbacks();
+      if (this.loginStateChangeTimeout) {
+        clearTimeout(this.loginStateChangeTimeout);
+        this.loginStateChangeTimeout = null;
+      }
       await this.client.close();
       this.client = null;
       this.networkListener = null;
