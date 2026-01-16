@@ -378,41 +378,71 @@ export class BrowserPage {
 
   // ExpectResponseText - 等待特定响应
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
-    const urlPattern = urlOrPredicate;
-    const pattern = urlPattern.replace(/\*\*/g, '.*');
-    
-    logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
-    
-    return new Promise(async (resolve, reject) => {
-      // 使用 CDPClient 的 NetworkListener 来管理响应监听
-      const networkListener = this.cdpClient.getNetworkListener();
-      if (!networkListener) {
-        reject(new Error('NetworkListener not initialized'));
-        return;
-      }
-
-      // 添加响应回调
-      networkListener.addResponseReceivedCallback(pattern, (body: string) => {
-        logger.debug(`expectResponseText: matched ${urlPattern}, text length: ${body.length}`);
-        resolve(body);
-      });
+    return new Promise((resolve, reject) => {
+      const urlPattern = urlOrPredicate;
+      let listenerActive = false; // 初始状态为不活跃
+      let listenerCalled = false; // 标记监听器是否被调用
       
-      try {
-        // 执行回调
-        await callback();
-        logger.debug(`expectResponseText: callback completed, waiting for response`);
+      logger.debug(`expectResponseText: starting for ${urlPattern}`);
+      
+      const responseListener = async (params: any) => {
+        listenerCalled = true;
+        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}`);
         
-        // 设置超时
-        setTimeout(() => {
-          networkListener.removeResponseReceivedCallback(pattern);
-          logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
-          reject(new Error(`Timeout waiting for response: ${urlPattern}`));
-        }, 10000);
-      } catch (error) {
-        networkListener.removeResponseReceivedCallback(pattern);
-        logger.error(`expectResponseText: callback failed: ${error}`);
-        reject(error);
-      }
+        if (!listenerActive) {
+          logger.debug(`expectResponseText: ignoring event, listener not active`);
+          return;
+        }
+        
+        // responseReceived 事件不需要检查 type 字段
+        const response = params.response;
+        logger.debug(`expectResponseText: responseReceived for ${response.url}`);
+        
+        if (response.url.includes(urlPattern)) {
+          listenerActive = false;
+          logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
+          
+          // 获取响应体
+          this.client.Network.getResponseBody({ requestId: params.requestId })
+            .then((result: any) => {
+              const text = result.body;
+              if (text) {
+                logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
+                resolve(text);
+              } else {
+                logger.error(`expectResponseText: response body is empty`);
+                reject(new Error('Response body is empty'));
+              }
+            })
+            .catch((err: any) => {
+              logger.error(`expectResponseText: failed to get response body: ${err}`);
+              reject(err);
+            });
+        }
+      };
+      
+      // 先添加监听器（但不处理事件）
+      logger.debug(`expectResponseText: adding response listener`);
+      this.client.Network.responseReceived(responseListener);
+      
+      // 执行回调
+      callback()
+        .then(() => {
+          // 回调完成后，激活监听器
+          listenerActive = true;
+          logger.debug(`expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`);
+          
+          // 设置超时检查
+          setTimeout(() => {
+            if (listenerActive && !listenerCalled) {
+              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlPattern}`);
+            }
+          }, 10000);
+        })
+        .catch((err: any) => {
+          logger.error(`expectResponseText: callback failed: ${err}`);
+          reject(err);
+        });
     });
   }
 
