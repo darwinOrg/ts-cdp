@@ -24,7 +24,6 @@ export class BrowserPage {
   private options: PageOptions;
   private locked: boolean;
   private pendingPages: BrowserPage[];
-  private responseListeners: Map<string, (response: any) => void>;
   private initialized: boolean;
 
   constructor(cdpClient: CDPClient, options: PageOptions = {}) {
@@ -40,7 +39,6 @@ export class BrowserPage {
     };
     this.locked = false;
     this.pendingPages = [];
-    this.responseListeners = new Map();
     this.initialized = false;
   }
 
@@ -52,33 +50,6 @@ export class BrowserPage {
       if (this.runtime) await this.runtime.enable();
       if (this.dom) await this.dom.enable();
       if (this.network) await this.network.enable();
-      
-      // 初始化全局响应监听器
-      this.network.responseReceived((params: any) => {
-        const { response, type, requestId } = params;
-        
-        // 只处理 XHR 请求
-        if (type !== 'XHR') return;
-        
-        // 检查是否有等待的监听器
-        for (const [pattern, callback] of this.responseListeners) {
-          const regex = new RegExp(pattern);
-          if (regex.test(response.url)) {
-            // 获取响应体
-            this.network.getResponseBody({ requestId })
-              .then((result: any) => {
-                callback(result.body);
-              })
-              .catch((error: any) => {
-                logger.error('Failed to get response body:', error);
-                callback({ error });
-              });
-            // 移除监听器
-            this.responseListeners.delete(pattern);
-            break;
-          }
-        }
-      });
       
       this.initialized = true;
     } catch (error) {
@@ -413,16 +384,17 @@ export class BrowserPage {
     logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
     
     return new Promise(async (resolve, reject) => {
-      // 添加监听器到全局管理器
-      this.responseListeners.set(pattern, (data: any) => {
-        if (data && data.error) {
-          reject(data.error);
-        } else if (data) {
-          logger.debug(`expectResponseText: matched ${urlPattern}, text length: ${data.length}`);
-          resolve(data);
-        } else {
-          reject(new Error('Response body is empty'));
-        }
+      // 使用 CDPClient 的 NetworkListener 来管理响应监听
+      const networkListener = this.cdpClient.getNetworkListener();
+      if (!networkListener) {
+        reject(new Error('NetworkListener not initialized'));
+        return;
+      }
+
+      // 添加响应回调
+      networkListener.addResponseReceivedCallback(pattern, (body: string) => {
+        logger.debug(`expectResponseText: matched ${urlPattern}, text length: ${body.length}`);
+        resolve(body);
       });
       
       try {
@@ -432,14 +404,12 @@ export class BrowserPage {
         
         // 设置超时
         setTimeout(() => {
-          if (this.responseListeners.has(pattern)) {
-            this.responseListeners.delete(pattern);
-            logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
-            reject(new Error(`Timeout waiting for response: ${urlPattern}`));
-          }
+          networkListener.removeResponseReceivedCallback(pattern);
+          logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
+          reject(new Error(`Timeout waiting for response: ${urlPattern}`));
         }, 10000);
       } catch (error) {
-        this.responseListeners.delete(pattern);
+        networkListener.removeResponseReceivedCallback(pattern);
         logger.error(`expectResponseText: callback failed: ${error}`);
         reject(error);
       }

@@ -19,12 +19,14 @@ export class NetworkListener {
   private dumpMap: Map<string, NetworkRequestInfo>;
   private har: HAR;
   private config: NetworkListenerConfig;
+  private responseReceivedCallbacks: Map<string, (body: string) => void>;
 
   constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
     this.client = client;
     this.callbacks = new Map();
     this.requestIds = new Map();
     this.dumpMap = new Map();
+    this.responseReceivedCallbacks = new Map();
     this.har = {
       log: {
         version: '1.2',
@@ -90,6 +92,19 @@ export class NetworkListener {
     if (type !== 'Fetch' && type !== 'XHR') return;
 
     try {
+      // 检查是否有 responseReceived 回调
+      for (const [pattern, callback] of this.responseReceivedCallbacks) {
+        const regex = new RegExp(pattern);
+        if (regex.test(response.url)) {
+          const { Network } = this.client;
+          const res = await Network.getResponseBody({ requestId });
+          callback(res.body);
+          this.responseReceivedCallbacks.delete(pattern);
+          break;
+        }
+      }
+
+      // 处理 watchUrls
       if (this.config.watchUrls && this.config.watchUrls.includes(response.url)) {
         const req = this.dumpMap.get(requestId);
         const { Network } = this.client;
@@ -180,6 +195,23 @@ export class NetworkListener {
 
   clearCallbacks(): void {
     this.callbacks.clear();
+    this.responseReceivedCallbacks.clear();
+  }
+
+  addResponseReceivedCallback(pattern: string, callback: (body: string) => void): void {
+    this.responseReceivedCallbacks.set(pattern, callback);
+    logger.debug(`Added responseReceived callback for: ${pattern}`);
+  }
+
+  removeResponseReceivedCallback(pattern: string): void {
+    this.responseReceivedCallbacks.delete(pattern);
+    logger.debug(`Removed responseReceived callback for: ${pattern}`);
+  }
+
+  clear(): void {
+    this.callbacks.clear();
+    this.responseReceivedCallbacks.clear();
     this.requestIds.clear();
+    this.dumpMap.clear();
   }
 }

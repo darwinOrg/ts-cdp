@@ -81,6 +81,10 @@ export class CDPClient {
     return this.client;
   }
 
+  getNetworkListener(): any {
+    return this.networkListener;
+  }
+
   private async getCurrentUrl(): Promise<string> {
     if (!this.client) return '';
     try {
