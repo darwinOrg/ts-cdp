@@ -148,7 +148,18 @@ export class BrowserPage {
             setTimeout(checkState, 100);
           }
         } catch (error) {
-          logger.warn(`waitForLoadState: error checking readyState: ${error}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          logger.warn(`waitForLoadState: error checking readyState: ${errorMessage}`);
+          
+          // 检查是否是连接关闭错误
+          if (errorMessage.includes('WebSocket is not open') || 
+              errorMessage.includes('WebSocket connection closed') ||
+              errorMessage.includes('Session closed') ||
+              errorMessage.includes('target closed')) {
+            reject(new Error(`WebSocket connection closed: ${errorMessage}`));
+            return;
+          }
+          
           setTimeout(checkState, 100);
         }
       };
