@@ -388,38 +388,37 @@ export class BrowserPage {
       
       const responseListener = async (params: any) => {
         listenerCalled = true;
-        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}, type=${params.type}`);
+        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}`);
         
         if (!listenerActive) {
           logger.debug(`expectResponseText: ignoring event, listener not active`);
           return;
         }
         
-        if (params.type === 'Network.responseReceived') {
-          const response = params.response;
-          logger.debug(`expectResponseText: responseReceived for ${response.url}`);
+        // responseReceived 事件不需要检查 type 字段
+        const response = params.response;
+        logger.debug(`expectResponseText: responseReceived for ${response.url}`);
+        
+        if (response.url.includes(urlPattern)) {
+          listenerActive = false;
+          logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
           
-          if (response.url.includes(urlPattern)) {
-            listenerActive = false;
-            logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
-            
-            // 获取响应体
-            this.client.Network.getResponseBody({ requestId: params.requestId })
-              .then((result: any) => {
-                const text = result.body;
-                if (text) {
-                  logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
-                  resolve(text);
-                } else {
-                  logger.error(`expectResponseText: response body is empty`);
-                  reject(new Error('Response body is empty'));
-                }
-              })
-              .catch((err: any) => {
-                logger.error(`expectResponseText: failed to get response body: ${err}`);
-                reject(err);
-              });
-          }
+          // 获取响应体
+          this.client.Network.getResponseBody({ requestId: params.requestId })
+            .then((result: any) => {
+              const text = result.body;
+              if (text) {
+                logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
+                resolve(text);
+              } else {
+                logger.error(`expectResponseText: response body is empty`);
+                reject(new Error('Response body is empty'));
+              }
+            })
+            .catch((err: any) => {
+              logger.error(`expectResponseText: failed to get response body: ${err}`);
+              reject(err);
+            });
         }
       };
       
