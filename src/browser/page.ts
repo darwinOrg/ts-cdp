@@ -150,7 +150,8 @@ export class BrowserPage {
   }
 
   async waitForDOMContentLoaded(timeout?: number): Promise<void> {
-    await this.waitForLoadState('domcontentloaded', timeout || this.options.timeout || 10000);
+    // 等待 2 秒让 DOM 加载完成
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
   async waitForSelector(selector: string, options: { timeout?: number; state?: 'visible' | 'hidden' | 'attached' } = {}): Promise<void> {
@@ -481,7 +482,8 @@ export class BrowserPage {
   async navigateWithLoadedState(url: string): Promise<void> {
     try {
       await this.page.navigate({ url });
-      await this.waitForLoadState('load');
+      // 等待 3 秒让页面加载完成
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
       logger.error('NavigateWithLoadedState error:', error);
       await this.renewPageByError(error);
@@ -491,10 +493,10 @@ export class BrowserPage {
 
   // ReloadWithLoadedState - 刷新并等待加载完成
   async reloadWithLoadedState(): Promise<void> {
-    
     try {
       await this.page.reload();
-      await this.waitForLoadState('load');
+      // 等待 3 秒让页面加载完成
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } catch (error) {
       logger.error('ReloadWithLoadedState error:', error);
       await this.renewPageByError(error);
@@ -504,12 +506,14 @@ export class BrowserPage {
 
   // WaitForLoadStateLoad - 等待页面加载完成
   async waitForLoadStateLoad(): Promise<void> {
-    await this.waitForLoadState('load');
+    // 等待 3 秒让页面加载完成
+    await new Promise(resolve => setTimeout(resolve, 3000));
   }
 
   // WaitForDomContentLoaded - 等待 DOM 加载完成
   async waitForDomContentLoaded(): Promise<void> {
-    await this.waitForLoadState('domcontentloaded');
+    // 等待 2 秒让 DOM 加载完成
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
 
   // WaitForSelectorStateVisible - 等待元素可见
