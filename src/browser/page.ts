@@ -382,34 +382,50 @@ export class BrowserPage {
     return new Promise((resolve, reject) => {
       const urlPattern = urlOrPredicate;
       let listenerActive = false; // 初始状态为不活跃
+      let listenerCalled = false; // 标记监听器是否被调用
       
-      const responseListener = (params: any) => {
-        if (!listenerActive) return;
+      logger.debug(`expectResponseText: starting for ${urlPattern}`);
+      
+      const responseListener = async (params: any) => {
+        listenerCalled = true;
+        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}, type=${params.type}`);
+        
+        if (!listenerActive) {
+          logger.debug(`expectResponseText: ignoring event, listener not active`);
+          return;
+        }
         
         if (params.type === 'Network.responseReceived') {
           const response = params.response;
+          logger.debug(`expectResponseText: responseReceived for ${response.url}`);
           
           if (response.url.includes(urlPattern)) {
             listenerActive = false;
+            logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
             
             // 获取响应体
             this.client.Network.getResponseBody({ requestId: params.requestId })
               .then((result: any) => {
                 const text = result.body;
                 if (text) {
-                  logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}`);
+                  logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
                   resolve(text);
                 } else {
+                  logger.error(`expectResponseText: response body is empty`);
                   reject(new Error('Response body is empty'));
                 }
               })
-              .catch(reject);
+              .catch((err: any) => {
+                logger.error(`expectResponseText: failed to get response body: ${err}`);
+                reject(err);
+              });
           }
         }
       };
       
       // 先添加监听器（但不处理事件）
-      this.client.Network.on('responseReceived', responseListener);
+      logger.debug(`expectResponseText: adding response listener`);
+      this.client.Network.responseReceived(responseListener);
       
       // 执行回调
       callback()
@@ -417,8 +433,18 @@ export class BrowserPage {
           // 回调完成后，激活监听器
           listenerActive = true;
           logger.debug(`expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`);
+          
+          // 设置超时检查
+          setTimeout(() => {
+            if (listenerActive && !listenerCalled) {
+              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlPattern}`);
+            }
+          }, 10000);
         })
-        .catch(reject);
+        .catch((err: any) => {
+          logger.error(`expectResponseText: callback failed: ${err}`);
+          reject(err);
+        });
     });
   }
 
