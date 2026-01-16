@@ -81,6 +81,10 @@ export class CDPClient {
     }
   }
 
+  setClient(client: CDP.Client): void {
+    this.client = client;
+  }
+
   getClient(): CDP.Client | null {
     return this.client;
   }

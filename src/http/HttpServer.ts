@@ -74,17 +74,60 @@ export class BrowserHttpServer {
         }
 
         const chrome = await launch({ headless });
-        const client = new CDPClient({ port: chrome.port, name: sessionId });
-        await client.connect();
+        
+        // 先连接到浏览器获取主client
+        const mainClient = new CDPClient({ port: chrome.port, name: sessionId });
+        await mainClient.connect();
 
-        // 创建 BrowserPage，使用默认的第一个 tab 页面
-        const page = new BrowserPage(client, { name: `${sessionId}-page` });
+        // 使用主client创建新的tab页面
+        const cdpClient = mainClient.getClient();
+        if (!cdpClient) {
+          throw new Error('Failed to get CDP client');
+        }
+
+        // 创建新的tab页面
+        const targetResult = await cdpClient.Target.createTarget({
+          url: 'about:blank'
+        });
+
+        // 连接到新创建的tab页面
+        const attachResult = await cdpClient.Target.attachToTarget({
+          targetId: targetResult.targetId,
+          flatten: true
+        });
+
+        // 为新tab创建新的CDP连接
+        const CDP = require('chrome-remote-interface');
+        const newClient = await CDP({
+          host: '127.0.0.1',
+          port: chrome.port,
+          target: targetResult.targetId
+        });
+
+        // 创建新的CDPClient包装器，并设置已经连接的client
+        const pageClient = new CDPClient({ port: chrome.port, name: `${sessionId}-page` });
+        pageClient.setClient(newClient);
+
+        // 初始化新tab的CDP域
+        const { Page, DOM, Network, Overlay } = newClient;
+        await Promise.all([
+          Page.enable(),
+          Network.enable(),
+          DOM.enable(),
+          Overlay.enable()
+        ]);
+
+        // 创建BrowserPage
+        const page = new BrowserPage(pageClient, { name: `${sessionId}-page` });
         await page.init();
+
+        // 关闭主client
+        await mainClient.close();
 
         this.clients.set(sessionId, {
           sessionId,
           chrome,
-          client,
+          client: pageClient, // 使用新tab的client
           page,
           isExternal: false
         });
