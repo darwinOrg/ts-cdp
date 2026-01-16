@@ -393,7 +393,6 @@ export class BrowserPage {
         listenerCalled = true;
         
         if (!listenerActive) {
-          logger.debug(`expectResponseText: ignoring event, listener not active`);
           return;
         }
         
