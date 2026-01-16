@@ -52,6 +52,34 @@ export class BrowserPage {
       if (this.runtime) await this.runtime.enable();
       if (this.dom) await this.dom.enable();
       if (this.network) await this.network.enable();
+      
+      // 初始化全局响应监听器
+      this.network.responseReceived((params: any) => {
+        const { response, type, requestId } = params;
+        
+        // 只处理 XHR 请求
+        if (type !== 'XHR') return;
+        
+        // 检查是否有等待的监听器
+        for (const [pattern, callback] of this.responseListeners) {
+          const regex = new RegExp(pattern);
+          if (regex.test(response.url)) {
+            // 获取响应体
+            this.network.getResponseBody({ requestId })
+              .then((result: any) => {
+                callback(result.body);
+              })
+              .catch((error: any) => {
+                logger.error('Failed to get response body:', error);
+                callback({ error });
+              });
+            // 移除监听器
+            this.responseListeners.delete(pattern);
+            break;
+          }
+        }
+      });
+      
       this.initialized = true;
     } catch (error) {
       logger.error(`Failed to initialize page: ${error}`);
@@ -379,84 +407,42 @@ export class BrowserPage {
 
   // ExpectResponseText - 等待特定响应
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const urlPattern = urlOrPredicate;
-      let listenerActive = false; // 初始状态为不活跃
-      let listenerRemoved = false; // 标记监听器是否已被移除
-      
-      // 将 ** 转换为通配符
-      const pattern = urlPattern.replace(/\*\*/g, '.*');
-      
-      logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
-      
-      const responseListener = async (params: any) => {
-        if (!listenerActive || listenerRemoved) {
-          return;
+    const urlPattern = urlOrPredicate;
+    const pattern = urlPattern.replace(/\*\*/g, '.*');
+    
+    logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
+    
+    return new Promise(async (resolve, reject) => {
+      // 添加监听器到全局管理器
+      this.responseListeners.set(pattern, (data: any) => {
+        if (data && data.error) {
+          reject(data.error);
+        } else if (data) {
+          logger.debug(`expectResponseText: matched ${urlPattern}, text length: ${data.length}`);
+          resolve(data);
+        } else {
+          reject(new Error('Response body is empty'));
         }
-        
-        // responseReceived 事件参数结构
-        const response = params.response;
-        const request = params.request;
-        const type = params.type; // type 字段在 params 中
-        
-        logger.debug(`expectResponseText: responseReceived for ${response.url}, type: ${type}, resourceType: ${response.resourceType}`);
-        
-        // 只处理 XHR 请求
-        if (type !== 'XHR') {
-          return;
-        }
-        
-        // 使用通配符匹配 URL
-        const regex = new RegExp(pattern);
-        if (regex.test(response.url)) {
-          listenerActive = false;
-          listenerRemoved = true;
-          logger.debug(`expectResponseText: matched ${urlPattern} (${pattern}) for ${response.url}, getting response body`);
-          
-          // 获取响应体
-          this.client.Network.getResponseBody({ requestId: params.requestId })
-            .then((result: any) => {
-              const text = result.body;
-              if (text) {
-                logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}, text length: ${text.length}`);
-                resolve(text);
-              } else {
-                logger.error(`expectResponseText: response body is empty`);
-                reject(new Error('Response body is empty'));
-              }
-            })
-            .catch((err: any) => {
-              logger.error(`expectResponseText: failed to get response body: ${err}`);
-              reject(err);
-            });
-        }
-      };
+      });
       
-      // 添加监听器
-      logger.debug(`expectResponseText: adding response listener`);
-      this.client.Network.responseReceived(responseListener);
-      
-      // 执行回调
-      callback()
-        .then(() => {
-          // 回调完成后，激活监听器
-          listenerActive = true;
-          logger.debug(`expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`);
-          
-          // 设置超时检查
-          setTimeout(() => {
-            if (listenerActive && !listenerRemoved) {
-              listenerRemoved = true;
-              logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
-              reject(new Error(`Timeout waiting for response: ${urlPattern}`));
-            }
-          }, 10000);
-        })
-        .catch((err: any) => {
-          listenerRemoved = true;
-          logger.error(`expectResponseText: callback failed: ${err}`);
-          reject(err);
-        });
+      try {
+        // 执行回调
+        await callback();
+        logger.debug(`expectResponseText: callback completed, waiting for response`);
+        
+        // 设置超时
+        setTimeout(() => {
+          if (this.responseListeners.has(pattern)) {
+            this.responseListeners.delete(pattern);
+            logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
+            reject(new Error(`Timeout waiting for response: ${urlPattern}`));
+          }
+        }, 10000);
+      } catch (error) {
+        this.responseListeners.delete(pattern);
+        logger.error(`expectResponseText: callback failed: ${error}`);
+        reject(error);
+      }
     });
   }
 
