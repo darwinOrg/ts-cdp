@@ -25,7 +25,7 @@ export class BrowserLocator {
 
   async exists(): Promise<boolean> {
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelector('${this.selector}') !== null`
       );
       return result || false;
@@ -58,7 +58,7 @@ export class BrowserLocator {
     }
 
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelector('${this.selector}').getAttribute('${attr}')`
       );
       return result ? result.trim() : '';
@@ -74,7 +74,7 @@ export class BrowserLocator {
     }
 
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelector('${this.selector}').outerHTML`
       );
       return result || '';
@@ -90,7 +90,7 @@ export class BrowserLocator {
     }
 
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelector('${this.selector}').textContent`
       );
       return result ? result.trim() : '';
@@ -106,7 +106,7 @@ export class BrowserLocator {
     }
 
     try {
-      await this.page['executeScript'](
+      await this.page.executeScript(
         `document.querySelector('${this.selector}').click()`
       );
     } catch (error) {
@@ -121,7 +121,7 @@ export class BrowserLocator {
     }
 
     try {
-      await this.page['executeScript'](
+      await this.page.executeScript(
         `
         const el = document.querySelector('${this.selector}');
         if (el) {
@@ -146,22 +146,22 @@ export class BrowserLocator {
     }
 
     try {
-      const element = await this.page['executeScript'](
+      const element = await this.page.executeScript(
         `document.querySelector('${this.selector}')`
       );
       
       // 清空现有值
-      await this.page['executeScript'](
+      await this.page.executeScript(
         `document.querySelector('${this.selector}').value = ''`
       );
       
       // 设置新值
-      await this.page['executeScript'](
+      await this.page.executeScript(
         `document.querySelector('${this.selector}').value = '${value.replace(/'/g, "\\'")}'`
       );
       
       // 触发 input 事件
-      await this.page['executeScript'](
+      await this.page.executeScript(
         `
         const event = new Event('input', { bubbles: true });
         document.querySelector('${this.selector}').dispatchEvent(event);
@@ -179,7 +179,7 @@ export class BrowserLocator {
     }
 
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `
         (function() {
           const el = document.querySelector('${this.selector}');
@@ -218,7 +218,7 @@ export class BrowserLocator {
 
   async getAllTexts(): Promise<string[]> {
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.innerText)`
       );
       return result || [];
@@ -230,7 +230,7 @@ export class BrowserLocator {
 
   async getAllAttributes(attr: string): Promise<string[]> {
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.getAttribute('${attr}'))`
       );
       return result || [];
@@ -242,7 +242,7 @@ export class BrowserLocator {
 
   async getCount(): Promise<number> {
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelectorAll('${this.selector}').length`
       );
       return result || 0;
