@@ -346,11 +346,14 @@ export class BrowserPage {
   async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return new Promise((resolve, reject) => {
       const targetUrlPattern = '**';
+      let listenerActive = true;
       
       // 监听新页面
       const targetCreatedListener = (params: any) => {
+        if (!listenerActive) return;
+        
         if (params.type === 'page' && params.targetInfo.url !== 'about:blank') {
-          this.client.Target.targetCreated(targetCreatedListener);
+          listenerActive = false;
           
           // 创建新的 BrowserPage
           const newPage = new BrowserPage(this.cdpClient, { 
@@ -367,8 +370,8 @@ export class BrowserPage {
       // 执行回调
       callback()
         .then(() => {
-          // 移除监听器
-          this.client.Target.off('targetCreated', targetCreatedListener);
+          // 标记监听器为非活跃状态
+          listenerActive = false;
         })
         .catch(reject);
     });
@@ -378,12 +381,16 @@ export class BrowserPage {
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
     return new Promise((resolve, reject) => {
       const urlPattern = urlOrPredicate;
+      let listenerActive = true;
+      
       const responseListener = (params: any) => {
+        if (!listenerActive) return;
+        
         if (params.type === 'Network.responseReceived') {
           const response = params.response;
           
           if (response.url.includes(urlPattern)) {
-            this.client.Network.off('responseReceived', responseListener);
+            listenerActive = false;
             
             // 获取响应体
             this.client.Network.getResponseBody({ requestId: params.requestId })
@@ -405,8 +412,8 @@ export class BrowserPage {
       // 执行回调
       callback()
         .then(() => {
-          // 移除监听器
-          this.client.Network.off('responseReceived', responseListener);
+          // 标记监听器为非活跃状态
+          listenerActive = false;
         })
         .catch(reject);
     });
