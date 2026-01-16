@@ -93,8 +93,10 @@ export class BrowserHttpServer {
 
         res.json({ 
           success: true, 
-          sessionId,
-          pages: Array.from(pages.keys())
+          data: {
+            sessionId,
+            pages: Array.from(pages.keys())
+          }
         });
       } catch (error) {
         logger.error('Failed to start browser:', error);
@@ -171,9 +173,11 @@ export class BrowserHttpServer {
 
         res.json({ 
           success: true, 
-          sessionId, 
-          port,
-          pages: Array.from(pages.keys())
+          data: {
+            sessionId,
+            port,
+            pages: Array.from(pages.keys())
+          }
         });
       } catch (error) {
         logger.error('Failed to connect to browser:', error);
@@ -211,7 +215,7 @@ export class BrowserHttpServer {
         
         session.pages.set(pageId, page);
 
-        res.json({ success: true, pageId });
+        res.json({ success: true, data: { pageId } });
       } catch (error) {
         logger.error('Failed to create new page:', error);
         res.status(500).json({
