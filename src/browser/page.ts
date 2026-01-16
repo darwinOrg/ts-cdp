@@ -394,9 +394,14 @@ export class BrowserPage {
           return;
         }
         
-        // responseReceived 事件不需要检查 type 字段
+        // 检查 type 字段，只处理 XHR 请求
+        const type = params.type;
+        if (type !== 'XHR') {
+          return;
+        }
+        
         const response = params.response;
-        logger.debug(`expectResponseText: responseReceived for ${response.url}`);
+        logger.debug(`expectResponseText: XHR responseReceived for ${response.url}`);
         
         if (response.url.includes(urlPattern)) {
           listenerActive = false;
