@@ -76,17 +76,29 @@ export class BrowserHttpServer {
         const chrome = await launch({ headless });
         const client = new CDPClient({ port: chrome.port, name: sessionId });
         await client.connect();
-        const page = new BrowserPage(client);
+        
+        // 获取所有已存在的页面
+        const targets = await client.getPages();
+        const pages = new Map<string, BrowserPage>();
+        
+        // 包装已存在的页面
+        for (let i = 0; i < targets.length; i++) {
+          const target = targets[i];
+          const pageId = i === 0 ? 'default' : `page-${i}`;
+          const page = new BrowserPage(client);
+          pages.set(pageId, page);
+          logger.debug(`Wrapped existing page ${pageId} for target ${target.targetId}`);
+        }
 
         this.clients.set(sessionId, {
           sessionId,
           chrome,
           client,
-          pages: new Map([['default', page]]),
+          pages,
           isExternal: false
         });
 
-        res.json({ success: true, sessionId });
+        res.json({ success: true, sessionId, pages: Array.from(pages.keys()) });
       } catch (error) {
         logger.error('Failed to start browser:', error);
         res.status(500).json({
@@ -145,17 +157,29 @@ export class BrowserHttpServer {
 
         const client = new CDPClient({ port, name: sessionId });
         await client.connect();
-        const page = new BrowserPage(client);
+        
+        // 获取所有已存在的页面
+        const targets = await client.getPages();
+        const pages = new Map<string, BrowserPage>();
+        
+        // 包装已存在的页面
+        for (let i = 0; i < targets.length; i++) {
+          const target = targets[i];
+          const pageId = i === 0 ? 'default' : `page-${i}`;
+          const page = new BrowserPage(client);
+          pages.set(pageId, page);
+          logger.debug(`Wrapped existing page ${pageId} for target ${target.targetId}`);
+        }
 
         this.clients.set(sessionId, {
           sessionId,
           chrome: null, // 连接到外部浏览器,不需要 chrome 实例
           client,
-          pages: new Map([['default', page]]),
+          pages,
           isExternal: true
         });
 
-        res.json({ success: true, sessionId, port });
+        res.json({ success: true, sessionId, port, pages: Array.from(pages.keys()) });
       } catch (error) {
         logger.error('Failed to connect to browser:', error);
         res.status(500).json({
