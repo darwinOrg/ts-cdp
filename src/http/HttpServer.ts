@@ -61,17 +61,10 @@ export class BrowserHttpServer {
     // 启动浏览器
     this.app.post('/api/browser/start', async (req: Request, res: Response) => {
       try {
-        const { sessionId, headless = false } = req.body;
+        const { headless = false } = req.body;
 
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        if (this.clients.has(sessionId)) {
-          res.status(400).json({ success: false, error: 'Session already exists' });
-          return;
-        }
+        // 自动生成 sessionId
+        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
         const chrome = await launch({ headless });
         const client = new CDPClient({ port: chrome.port, name: sessionId });
@@ -147,17 +140,10 @@ export class BrowserHttpServer {
     // 连接到现有浏览器
     this.app.post('/api/browser/connect', async (req: Request, res: Response) => {
       try {
-        const { sessionId, port = 9222 } = req.body;
+        const { port = 9222 } = req.body;
 
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        if (this.clients.has(sessionId)) {
-          res.status(400).json({ success: false, error: 'Session already exists' });
-          return;
-        }
+        // 自动生成 sessionId
+        const sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
         const client = new CDPClient({ port, name: sessionId });
         await client.connect();
