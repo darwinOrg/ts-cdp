@@ -1,7 +1,7 @@
-import { CDPClient } from '../browser/client';
-import { createLogger } from './logger';
+import { CDPClient } from "../browser/client";
+import { createLogger } from "./logger";
 
-const logger = createLogger('ApiInterceptor');
+const logger = createLogger("ApiInterceptor");
 
 export interface InterceptOptions {
   timeout?: number; // 超时时间（毫秒）
@@ -22,12 +22,12 @@ export interface InterceptResult {
 
 /**
  * 精准拦截指定接口的最新一次数据
- * 
+ *
  * @param client - CDP 客户端实例
  * @param apiUrl - 要拦截的 API URL
  * @param options - 配置选项
  * @returns Promise<InterceptResult>
- * 
+ *
  * @example
  * ```typescript
  * const result = await interceptApiData(client, 'https://api.example.com/data', {
@@ -37,7 +37,7 @@ export interface InterceptResult {
  *     await client.navigate('https://example.com');
  *   }
  * });
- * 
+ *
  * if (result.success) {
  *   const data = JSON.parse(result.data);
  *   console.log('拦截成功:', data);
@@ -49,13 +49,9 @@ export interface InterceptResult {
 export async function interceptApiData(
   client: CDPClient,
   apiUrl: string,
-  options: InterceptOptions = {}
+  options: InterceptOptions = {},
 ): Promise<InterceptResult> {
-  const {
-    timeout = 10000,
-    maxAttempts = 5,
-    triggerAction
-  } = options;
+  const { timeout = 10000, maxAttempts = 5, triggerAction } = options;
 
   let latestData: any = null;
   let attemptCount = 0;
@@ -79,7 +75,7 @@ export async function interceptApiData(
         timestamp: new Date().toISOString(),
         attemptCount,
         request,
-        response
+        response,
       };
 
       logger.debug(`已更新最新数据缓存 (尝试次数: ${attemptCount})`);
@@ -87,7 +83,7 @@ export async function interceptApiData(
 
     // 执行触发操作（如果提供）
     if (triggerAction) {
-      logger.debug('执行触发操作...');
+      logger.debug("执行触发操作...");
       await triggerAction();
     }
 
@@ -133,8 +129,8 @@ export async function interceptApiData(
         metadata: {
           timestamp: new Date().toISOString(),
           attemptCount,
-          requestUrl: apiUrl
-        }
+          requestUrl: apiUrl,
+        },
       };
     }
 
@@ -145,13 +141,14 @@ export async function interceptApiData(
       metadata: {
         timestamp: latestData.timestamp,
         attemptCount: latestData.attemptCount,
-        requestUrl: apiUrl
-      }
+        requestUrl: apiUrl,
+      },
     };
 
-    logger.info(`拦截成功 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`);
+    logger.info(
+      `拦截成功 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
+    );
     return result;
-
   } catch (error: any) {
     // 移除拦截回调
     try {
@@ -169,20 +166,20 @@ export async function interceptApiData(
       metadata: {
         timestamp: new Date().toISOString(),
         attemptCount,
-        requestUrl: apiUrl
-      }
+        requestUrl: apiUrl,
+      },
     };
   }
 }
 
 /**
  * 批量拦截多个接口的数据
- * 
+ *
  * @param client - CDP 客户端实例
  * @param apiUrls - 要拦截的 API URL 数组
  * @param options - 配置选项
  * @returns Promise<Map<string, InterceptResult>>
- * 
+ *
  * @example
  * ```typescript
  * const results = await interceptMultipleApis(client, [
@@ -194,7 +191,7 @@ export async function interceptApiData(
  *     await client.navigate('https://example.com');
  *   }
  * });
- * 
+ *
  * results.forEach((result, url) => {
  *   if (result.success) {
  *     console.log(`${url}:`, JSON.parse(result.data));
@@ -205,7 +202,7 @@ export async function interceptApiData(
 export async function interceptMultipleApis(
   client: CDPClient,
   apiUrls: string[],
-  options: InterceptOptions = {}
+  options: InterceptOptions = {},
 ): Promise<Map<string, InterceptResult>> {
   const results = new Map<string, InterceptResult>();
 
@@ -219,7 +216,9 @@ export async function interceptMultipleApis(
 
   await Promise.all(promises);
 
-  const successCount = Array.from(results.values()).filter(r => r.success).length;
+  const successCount = Array.from(results.values()).filter(
+    (r) => r.success,
+  ).length;
   logger.info(`批量拦截完成: ${successCount}/${apiUrls.length} 成功`);
 
   return results;

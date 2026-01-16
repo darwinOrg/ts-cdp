@@ -1,4 +1,4 @@
-import { BrowserWebSocketServer } from './server';
+import { BrowserWebSocketServer } from "./server";
 
 async function startWebSocketServer() {
   const server = new BrowserWebSocketServer(3001);
@@ -44,14 +44,14 @@ Press Ctrl+C to stop the server
   `);
 
   // 优雅关闭
-  process.on('SIGINT', async () => {
-    console.log('\n\nShutting down WebSocket server...');
+  process.on("SIGINT", async () => {
+    console.log("\n\nShutting down WebSocket server...");
     await server.stop();
     process.exit(0);
   });
 
-  process.on('SIGTERM', async () => {
-    console.log('\n\nShutting down WebSocket server...');
+  process.on("SIGTERM", async () => {
+    console.log("\n\nShutting down WebSocket server...");
     await server.stop();
     process.exit(0);
   });

@@ -1,9 +1,9 @@
-import { BrowserHttpServer } from './HttpServer';
+import { BrowserHttpServer } from "./HttpServer";
 
 async function startServer() {
   const server = new BrowserHttpServer({
     port: 3000,
-    host: '0.0.0.0'
+    host: "0.0.0.0",
   });
 
   await server.start();
@@ -20,14 +20,14 @@ Press Ctrl+C to stop the server
   `);
 
   // 优雅关闭
-  process.on('SIGINT', async () => {
-    console.log('\n\nShutting down server...');
+  process.on("SIGINT", async () => {
+    console.log("\n\nShutting down server...");
     await server.stop();
     process.exit(0);
   });
 
-  process.on('SIGTERM', async () => {
-    console.log('\n\nShutting down server...');
+  process.on("SIGTERM", async () => {
+    console.log("\n\nShutting down server...");
     await server.stop();
     process.exit(0);
   });

@@ -1,8 +1,8 @@
-import type { CDPClient } from './client';
-import { createLogger } from '../utils/logger';
-import { BrowserLocator } from './locator';
+import type { CDPClient } from "./client";
+import { createLogger } from "../utils/logger";
+import { BrowserLocator } from "./locator";
 
-const logger = createLogger('BrowserPage');
+const logger = createLogger("BrowserPage");
 
 export interface PageOptions {
   name?: string;
@@ -10,7 +10,7 @@ export interface PageOptions {
 }
 
 export interface NavigateOptions {
-  waitUntil?: 'load' | 'domcontentloaded' | 'networkidle';
+  waitUntil?: "load" | "domcontentloaded" | "networkidle";
   timeout?: number;
 }
 
@@ -35,7 +35,7 @@ export class BrowserPage {
     this.network = this.client?.Network;
     this.options = {
       timeout: 10000,
-      ...options
+      ...options,
     };
     this.locked = false;
     this.pendingPages = [];
@@ -48,7 +48,7 @@ export class BrowserPage {
     try {
       // Page、Runtime、DOM、Network 已经在 CDPClient 中启用，不需要再次启用
       // 这些领域在 CDP 客户端连接时就已经启用了
-      
+
       this.initialized = true;
     } catch (error) {
       logger.error(`Failed to initialize page: ${error}`);
@@ -58,12 +58,12 @@ export class BrowserPage {
 
   async navigate(url: string, options: NavigateOptions = {}): Promise<void> {
     const opts = {
-      waitUntil: 'load' as const,
+      waitUntil: "load" as const,
       timeout: this.options.timeout,
-      ...options
+      ...options,
     };
 
-    if (!this.page) throw new Error('Page not initialized');
+    if (!this.page) throw new Error("Page not initialized");
 
     logger.info(`Navigating to ${url} with waitUntil=${opts.waitUntil}`);
     await this.page.navigate({ url });
@@ -75,24 +75,29 @@ export class BrowserPage {
 
   async reload(options: NavigateOptions = {}): Promise<void> {
     const opts = {
-      waitUntil: 'load' as const,
+      waitUntil: "load" as const,
       timeout: this.options.timeout,
-      ...options
+      ...options,
     };
 
-    if (!this.page) throw new Error('Page not initialized');
+    if (!this.page) throw new Error("Page not initialized");
 
     await this.page.reload();
-    
+
     // 使用 waitForLoadState 等待页面加载完成
     await this.waitForLoadState(opts.waitUntil, opts.timeout);
   }
 
-  async waitForLoadState(state: 'load' | 'domcontentloaded' | 'networkidle', timeout?: number): Promise<void> {
+  async waitForLoadState(
+    state: "load" | "domcontentloaded" | "networkidle",
+    timeout?: number,
+  ): Promise<void> {
     const timeoutMs = timeout || this.options.timeout || 10000;
     const startTime = Date.now();
 
-    logger.info(`waitForLoadState: waiting for ${state}, timeout=${timeoutMs}ms`);
+    logger.info(
+      `waitForLoadState: waiting for ${state}, timeout=${timeoutMs}ms`,
+    );
 
     return new Promise((resolve, reject) => {
       const checkState = async () => {
@@ -104,19 +109,26 @@ export class BrowserPage {
         try {
           // 使用 Runtime.evaluate 检查 document.readyState
           const result = await this.runtime?.evaluate({
-            expression: `document.readyState`
+            expression: `document.readyState`,
           });
 
           const readyState = result?.result?.value;
-          logger.info(`waitForLoadState: state=${state}, readyState=${readyState}, waiting for ${state}`);
+          logger.info(
+            `waitForLoadState: state=${state}, readyState=${readyState}, waiting for ${state}`,
+          );
 
-          if (state === 'domcontentloaded' && (readyState === 'interactive' || readyState === 'complete')) {
+          if (
+            state === "domcontentloaded" &&
+            (readyState === "interactive" || readyState === "complete")
+          ) {
             logger.info(`waitForLoadState: resolving for domcontentloaded`);
             resolve();
-          } else if (state === 'load' && readyState === 'complete') {
-            logger.info(`waitForLoadState: resolving for load, readyState=${readyState}`);
+          } else if (state === "load" && readyState === "complete") {
+            logger.info(
+              `waitForLoadState: resolving for load, readyState=${readyState}`,
+            );
             resolve();
-          } else if (state === 'networkidle') {
+          } else if (state === "networkidle") {
             // 简化的 networkidle 检查
             resolve();
           } else {
@@ -134,10 +146,16 @@ export class BrowserPage {
   }
 
   async waitForDOMContentLoaded(timeout?: number): Promise<void> {
-    await this.waitForLoadState('domcontentloaded', timeout);
+    await this.waitForLoadState("domcontentloaded", timeout);
   }
 
-  async waitForSelector(selector: string, options: { timeout?: number; state?: 'visible' | 'hidden' | 'attached' } = {}): Promise<void> {
+  async waitForSelector(
+    selector: string,
+    options: {
+      timeout?: number;
+      state?: "visible" | "hidden" | "attached";
+    } = {},
+  ): Promise<void> {
     const timeoutMs = options.timeout || this.options.timeout || 10000;
     const startTime = Date.now();
 
@@ -150,13 +168,13 @@ export class BrowserPage {
 
         try {
           const result = await this.runtime?.evaluate({
-            expression: `document.querySelector('${selector}') !== null`
+            expression: `document.querySelector('${selector}') !== null`,
           });
 
           const elementExists = result?.result?.value;
 
           if (elementExists) {
-            if (options.state === 'visible') {
+            if (options.state === "visible") {
               const visible = await this.runtime?.evaluate({
                 expression: `
                   (function() {
@@ -164,7 +182,7 @@ export class BrowserPage {
                     const style = window.getComputedStyle(el);
                     return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
                   })()
-                `
+                `,
               });
 
               const isVisible = visible?.result?.value;
@@ -207,7 +225,7 @@ export class BrowserPage {
           if (networkListener) {
             this.client?.Network?.removeAllListeners();
           }
-          reject(new Error('Timeout waiting for network idle'));
+          reject(new Error("Timeout waiting for network idle"));
         } else {
           setTimeout(checkIdle, 100);
         }
@@ -222,11 +240,11 @@ export class BrowserPage {
   }
 
   async executeScript(script: string): Promise<any> {
-    if (!this.runtime) throw new Error('Runtime not initialized');
+    if (!this.runtime) throw new Error("Runtime not initialized");
 
     const result = await this.runtime.evaluate({
       expression: script,
-      returnByValue: true
+      returnByValue: true,
     });
 
     return result?.result?.value;
@@ -243,7 +261,7 @@ export class BrowserPage {
   async exists(selector: string): Promise<boolean> {
     try {
       const result = await this.runtime?.evaluate({
-        expression: `document.querySelector('${selector}') !== null`
+        expression: `document.querySelector('${selector}') !== null`,
       });
       return result?.result?.value || false;
     } catch {
@@ -264,20 +282,20 @@ export class BrowserPage {
   }
 
   async getHTML(): Promise<string> {
-    if (!this.runtime) throw new Error('Runtime not initialized');
+    if (!this.runtime) throw new Error("Runtime not initialized");
 
     const result = await this.runtime.evaluate({
-      expression: 'document.documentElement.outerHTML'
+      expression: "document.documentElement.outerHTML",
     });
 
-    return result?.result?.value || '';
+    return result?.result?.value || "";
   }
 
-  async screenshot(format: 'png' | 'jpeg' | 'webp' = 'png'): Promise<string> {
-    if (!this.page) throw new Error('Page not initialized');
+  async screenshot(format: "png" | "jpeg" | "webp" = "png"): Promise<string> {
+    if (!this.page) throw new Error("Page not initialized");
 
     const result = await this.page.captureScreenshot({
-      format
+      format,
     });
 
     return result.data;
@@ -285,16 +303,16 @@ export class BrowserPage {
 
   async getTitle(): Promise<string> {
     const result = await this.runtime?.evaluate({
-      expression: 'document.title'
+      expression: "document.title",
     });
-    return result?.result?.value || '';
+    return result?.result?.value || "";
   }
 
   async getUrl(): Promise<string> {
     const result = await this.runtime?.evaluate({
-      expression: 'window.location.href'
+      expression: "window.location.href",
     });
-    return result?.result?.value || '';
+    return result?.result?.value || "";
   }
 
   lock(): void {
@@ -318,28 +336,28 @@ export class BrowserPage {
   // ExpectExtPage - 等待新页面打开
   async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return new Promise((resolve, reject) => {
-      const targetUrlPattern = '**';
+      const targetUrlPattern = "**";
       let listenerActive = true;
-      
+
       // 监听新页面
       const targetCreatedListener = (params: any) => {
         if (!listenerActive) return;
-        
-        if (params.type === 'page' && params.targetInfo.url !== 'about:blank') {
+
+        if (params.type === "page" && params.targetInfo.url !== "about:blank") {
           listenerActive = false;
-          
+
           // 创建新的 BrowserPage
-          const newPage = new BrowserPage(this.cdpClient, { 
-            name: `page-${Date.now()}` 
+          const newPage = new BrowserPage(this.cdpClient, {
+            name: `page-${Date.now()}`,
           });
-          
+
           this.pendingPages.push(newPage);
           resolve(newPage);
         }
       };
-      
-      this.client.Target.on('targetCreated', targetCreatedListener);
-      
+
+      this.client.Target.on("targetCreated", targetCreatedListener);
+
       // 执行回调
       callback()
         .then(() => {
@@ -351,60 +369,77 @@ export class BrowserPage {
   }
 
   // ExpectResponseText - 等待特定响应
-  async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
+  async expectResponseText(
+    urlOrPredicate: string,
+    callback: () => Promise<void>,
+  ): Promise<string> {
     return new Promise((resolve, reject) => {
       // 将 ** 转换为 .* 用于正则匹配
-      const urlPattern = urlOrPredicate.replace(/\*\*/g, '.*');
+      const urlPattern = urlOrPredicate.replace(/\*\*/g, ".*");
       let listenerActive = false; // 初始状态为不活跃
       let listenerCalled = false; // 标记监听器是否被调用
-      
-      logger.debug(`expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`);
-      
+
+      logger.debug(
+        `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
+      );
+
       const responseCallback = (body: string) => {
         listenerCalled = true;
-        logger.debug(`expectResponseText: response callback triggered for ${urlOrPredicate}`);
-        
+        logger.debug(
+          `expectResponseText: response callback triggered for ${urlOrPredicate}`,
+        );
+
         if (!listenerActive) {
           return;
         }
-        
+
         listenerActive = false;
-        
+
         if (body) {
-          logger.debug(`expectResponseText: matched ${urlOrPredicate} at ${new Date().toISOString()}, body length: ${body.length}`);
+          logger.debug(
+            `expectResponseText: matched ${urlOrPredicate} at ${new Date().toISOString()}, body length: ${body.length}`,
+          );
           resolve(body);
         } else {
           logger.error(`expectResponseText: response body is empty`);
-          reject(new Error('Response body is empty'));
+          reject(new Error("Response body is empty"));
         }
       };
-      
+
       // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
       const networkListener = this.cdpClient.getNetworkListener();
       if (networkListener) {
         networkListener.addCallback(urlPattern, responseCallback);
-        logger.debug(`expectResponseText: added callback for pattern ${urlPattern}`);
+        logger.debug(
+          `expectResponseText: added callback for pattern ${urlPattern}`,
+        );
       } else {
-        reject(new Error('NetworkListener not initialized'));
+        reject(new Error("NetworkListener not initialized"));
         return;
       }
-      
+
       // 执行回调
       callback()
         .then(() => {
           // 回调完成后，激活监听器
           listenerActive = true;
-          logger.debug(`expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`);
-          
+          logger.debug(
+            `expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`,
+          );
+
           // 设置超时检查
           setTimeout(() => {
             if (listenerActive && !listenerCalled) {
-              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlOrPredicate}`);
+              logger.warn(
+                `expectResponseText: no response received within 10 seconds for ${urlOrPredicate}`,
+              );
               // 清理回调
               if (networkListener) {
                 networkListener.removeCallback(urlPattern);
               }
-              reject(new Error(`Timeout waiting for response: ${urlOrPredicate}`));
+              reject(
+                new Error(`Timeout waiting for response: ${urlOrPredicate}`),
+              );
             }
           }, 10000);
         })
@@ -421,16 +456,19 @@ export class BrowserPage {
 
   // ReNewPageByError - 错误时恢复页面
   async renewPageByError(error: any): Promise<void> {
-    const errorMessage = error?.message || '';
-    if (errorMessage.includes('target closed') || errorMessage.includes('Session closed')) {
-      console.warn('Page closed, renewing...');
+    const errorMessage = error?.message || "";
+    if (
+      errorMessage.includes("target closed") ||
+      errorMessage.includes("Session closed")
+    ) {
+      console.warn("Page closed, renewing...");
       await this.close();
-      
+
       // 等待并重试
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // 重新初始化页面 - 注意：这需要重新连接到 CDP
-      logger.warn('Page recovery not fully implemented');
+      logger.warn("Page recovery not fully implemented");
     }
   }
 
@@ -466,9 +504,9 @@ export class BrowserPage {
     try {
       await this.page.navigate({ url });
       // 等待页面加载完成
-      await this.waitForLoadState('load');
+      await this.waitForLoadState("load");
     } catch (error) {
-      logger.error('NavigateWithLoadedState error:', error);
+      logger.error("NavigateWithLoadedState error:", error);
       await this.renewPageByError(error);
       throw error;
     }
@@ -479,9 +517,9 @@ export class BrowserPage {
     try {
       await this.page.reload();
       // 等待页面加载完成
-      await this.waitForLoadState('load');
+      await this.waitForLoadState("load");
     } catch (error) {
-      logger.error('ReloadWithLoadedState error:', error);
+      logger.error("ReloadWithLoadedState error:", error);
       await this.renewPageByError(error);
       throw error;
     }
@@ -489,17 +527,17 @@ export class BrowserPage {
 
   // WaitForLoadStateLoad - 等待页面加载完成
   async waitForLoadStateLoad(): Promise<void> {
-    await this.waitForLoadState('load');
+    await this.waitForLoadState("load");
   }
 
   // WaitForDomContentLoaded - 等待 DOM 加载完成
   async waitForDomContentLoaded(): Promise<void> {
-    await this.waitForLoadState('domcontentloaded');
+    await this.waitForLoadState("domcontentloaded");
   }
 
   // WaitForSelectorStateVisible - 等待元素可见
   async waitForSelectorStateVisible(selector: string): Promise<void> {
-    await this.waitForSelector(selector, { state: 'visible' });
+    await this.waitForSelector(selector, { state: "visible" });
   }
 
   // CloseAll - 关闭页面和浏览器
@@ -521,4 +559,5 @@ export class BrowserPage {
       return true;
     }
   }
-}export { BrowserLocator } from './locator';
+}
+export { BrowserLocator } from "./locator";

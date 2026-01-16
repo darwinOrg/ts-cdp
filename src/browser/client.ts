@@ -1,16 +1,16 @@
-import CDP from 'chrome-remote-interface';
-import { NetworkListener } from '../network/listener';
-import { createLogger } from '../utils/logger';
+import CDP from "chrome-remote-interface";
+import { NetworkListener } from "../network/listener";
+import { createLogger } from "../utils/logger";
 import type {
   CDPClientOptions,
   CDPClientConfig,
   NetworkListenerConfig,
   LoginState,
   LoginCallback,
-  DisconnectCallback
-} from '../types';
+  DisconnectCallback,
+} from "../types";
 
-const logger = createLogger('CDPClient');
+const logger = createLogger("CDPClient");
 
 export class CDPClient {
   private client: CDP.Client | null;
@@ -21,16 +21,19 @@ export class CDPClient {
   private lastLoginStateChangeTime: number;
   private loginStateChangeTimeout: NodeJS.Timeout | null;
 
-  constructor(config: CDPClientConfig, options: Partial<CDPClientOptions> = {}) {
+  constructor(
+    config: CDPClientConfig,
+    options: Partial<CDPClientOptions> = {},
+  ) {
     this.config = config;
     this.options = {
-      host: '127.0.0.1',
+      host: "127.0.0.1",
       port: config.port,
-      ...options
+      ...options,
     };
     this.client = null;
     this.networkListener = null;
-    this.currentUrl = '';
+    this.currentUrl = "";
     this.lastLoginStateChangeTime = 0;
     this.loginStateChangeTimeout = null;
   }
@@ -39,14 +42,14 @@ export class CDPClient {
     try {
       this.client = await (CDP as any)({
         host: this.options.host!,
-        port: this.options.port
+        port: this.options.port,
       });
 
       if (!this.client) {
-        throw new Error('Failed to create CDP client');
+        throw new Error("Failed to create CDP client");
       }
 
-      this.client.on('disconnect', () => {
+      this.client.on("disconnect", () => {
         logger.info(`Disconnected from port ${this.options.port}`);
         if (this.config.disconnectCallback) {
           this.config.disconnectCallback();
@@ -54,8 +57,8 @@ export class CDPClient {
         this.client?.close();
       });
 
-      this.client.on('ready', () => {
-        logger.info(`Client ready: ${this.config.name || 'unnamed'}`);
+      this.client.on("ready", () => {
+        logger.info(`Client ready: ${this.config.name || "unnamed"}`);
       });
 
       const { Page, DOM, Network, Overlay } = this.client;
@@ -63,7 +66,7 @@ export class CDPClient {
         Page.enable(),
         Network.enable(),
         DOM.enable(),
-        Overlay.enable()
+        Overlay.enable(),
       ]);
 
       this.currentUrl = await this.getCurrentUrl();
@@ -76,7 +79,7 @@ export class CDPClient {
 
       return this.client;
     } catch (error) {
-      logger.error('Failed to connect to CDP', error);
+      logger.error("Failed to connect to CDP", error);
       throw error;
     }
   }
@@ -90,12 +93,12 @@ export class CDPClient {
   }
 
   private async getCurrentUrl(): Promise<string> {
-    if (!this.client) return '';
+    if (!this.client) return "";
     try {
       const frameTree = await this.client.Page.getFrameTree();
       return frameTree.frameTree.frame.url;
     } catch {
-      return '';
+      return "";
     }
   }
 
@@ -104,7 +107,7 @@ export class CDPClient {
 
     const networkConfig: NetworkListenerConfig = {
       watchUrls: this.config.watchUrls,
-      enableHAR: true
+      enableHAR: true,
     };
 
     this.networkListener = new NetworkListener(this.client, networkConfig);
@@ -112,7 +115,12 @@ export class CDPClient {
   }
 
   private async initLoginStatus(): Promise<void> {
-    if (!this.client || !this.config.loginUrlPatterns || !this.config.loginCallback) return;
+    if (
+      !this.client ||
+      !this.config.loginUrlPatterns ||
+      !this.config.loginCallback
+    )
+      return;
 
     const { Page } = this.client;
     const { loginUrl, targetPrefix } = this.config.loginUrlPatterns;
@@ -128,7 +136,11 @@ export class CDPClient {
     });
   }
 
-  private handleNavigation(newUrl: string, loginUrl: string, targetPrefix: string): void {
+  private handleNavigation(
+    newUrl: string,
+    loginUrl: string,
+    targetPrefix: string,
+  ): void {
     const prevUrl = this.currentUrl;
     const currentTime = Date.now();
 
@@ -140,14 +152,22 @@ export class CDPClient {
 
     // 防抖动：如果距离上次状态变更不到1秒，则忽略
     if (currentTime - this.lastLoginStateChangeTime < 1000) {
-      logger.debug('Skipping navigation due to debounce', { prevUrl, newUrl, timeDiff: currentTime - this.lastLoginStateChangeTime });
+      logger.debug("Skipping navigation due to debounce", {
+        prevUrl,
+        newUrl,
+        timeDiff: currentTime - this.lastLoginStateChangeTime,
+      });
       this.currentUrl = newUrl;
       return;
     }
 
     // 检查是否是从目标页面导航离开（表示登出）
-    if (prevUrl.startsWith(targetPrefix) && !newUrl.startsWith(targetPrefix) && newUrl !== loginUrl) {
-      logger.info('User logged out', { prevUrl, newUrl });
+    if (
+      prevUrl.startsWith(targetPrefix) &&
+      !newUrl.startsWith(targetPrefix) &&
+      newUrl !== loginUrl
+    ) {
+      logger.info("User logged out", { prevUrl, newUrl });
 
       // 更新最后状态变更时间
       this.lastLoginStateChangeTime = currentTime;
@@ -157,12 +177,12 @@ export class CDPClient {
         clearTimeout(this.loginStateChangeTimeout);
       }
       this.loginStateChangeTimeout = setTimeout(() => {
-        this.config.loginCallback?.('logout');
+        this.config.loginCallback?.("logout");
       }, 100);
     }
     // 检查是否从登录页面导航到目标页面（表示登录）
     else if (prevUrl === loginUrl && newUrl.startsWith(targetPrefix)) {
-      logger.info('User logged in', { newUrl });
+      logger.info("User logged in", { newUrl });
 
       // 更新最后状态变更时间
       this.lastLoginStateChangeTime = currentTime;
@@ -172,19 +192,26 @@ export class CDPClient {
         clearTimeout(this.loginStateChangeTimeout);
       }
       this.loginStateChangeTimeout = setTimeout(() => {
-        this.config.loginCallback?.('login');
+        this.config.loginCallback?.("login");
       }, 100);
     }
     // 检查是否从非登录页直接跳转到目标页面（可能是已经登录的情况）
-    else if (!prevUrl.startsWith(loginUrl) && newUrl.startsWith(targetPrefix) && prevUrl !== newUrl) {
+    else if (
+      !prevUrl.startsWith(loginUrl) &&
+      newUrl.startsWith(targetPrefix) &&
+      prevUrl !== newUrl
+    ) {
       // 可能是直接导航到目标页面，不一定是登录
-      logger.debug('Navigated to target page', { prevUrl, newUrl });
+      logger.debug("Navigated to target page", { prevUrl, newUrl });
     }
 
     this.currentUrl = newUrl;
   }
 
-  addNetworkCallback(url: string, callback: (response: any, request?: string) => void): void {
+  addNetworkCallback(
+    url: string,
+    callback: (response: any, request?: string) => void,
+  ): void {
     this.networkListener?.addCallback(url, callback);
   }
 
@@ -197,38 +224,41 @@ export class CDPClient {
   }
 
   async navigate(url: string): Promise<void> {
-    if (!this.client) throw new Error('Client not connected');
+    if (!this.client) throw new Error("Client not connected");
     await this.client.Page.navigate({ url });
   }
 
   async reload(): Promise<void> {
-    if (!this.client) throw new Error('Client not connected');
+    if (!this.client) throw new Error("Client not connected");
     await this.client.Page.reload();
   }
 
   async executeScript(script: string): Promise<any> {
-    if (!this.client) throw new Error('Client not connected');
+    if (!this.client) throw new Error("Client not connected");
     const result = await this.client.Runtime.evaluate({
       expression: script,
-      returnByValue: true
+      returnByValue: true,
     });
     return result.result?.value;
   }
 
   async getDOM(): Promise<string> {
-    if (!this.client) throw new Error('Client not connected');
+    if (!this.client) throw new Error("Client not connected");
     const { DOM } = this.client;
     const { root } = await DOM.getDocument({ depth: -1 });
     const { outerHTML } = await DOM.getOuterHTML({ nodeId: root.nodeId });
     return outerHTML;
   }
 
-  async screenshot(format: 'png' | 'jpeg' = 'png', quality?: number): Promise<string> {
-    if (!this.client) throw new Error('Client not connected');
+  async screenshot(
+    format: "png" | "jpeg" = "png",
+    quality?: number,
+  ): Promise<string> {
+    if (!this.client) throw new Error("Client not connected");
     const { Page } = this.client;
     const result = await Page.captureScreenshot({
       format,
-      quality: format === 'jpeg' ? quality : undefined
+      quality: format === "jpeg" ? quality : undefined,
     });
     return result.data;
   }
@@ -237,9 +267,9 @@ export class CDPClient {
     if (!this.client) return [];
     try {
       const targets = await this.client.Target.getTargets();
-      return targets.targetInfos.filter((t: any) => t.type === 'page');
+      return targets.targetInfos.filter((t: any) => t.type === "page");
     } catch (error) {
-      logger.error('Failed to get pages:', error);
+      logger.error("Failed to get pages:", error);
       return [];
     }
   }

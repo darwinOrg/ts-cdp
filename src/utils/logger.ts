@@ -1,8 +1,8 @@
 export enum LogLevel {
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error',
-  DEBUG = 'debug'
+  INFO = "info",
+  WARN = "warn",
+  ERROR = "error",
+  DEBUG = "debug",
 }
 
 export class Logger {
@@ -14,15 +14,15 @@ export class Logger {
 
   private formatMessage(level: LogLevel, message: string): string {
     // 使用北京时区（UTC+8）格式化时间
-    const timestamp = new Date().toLocaleString('zh-CN', {
-      timeZone: 'Asia/Shanghai',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
+    const timestamp = new Date().toLocaleString("zh-CN", {
+      timeZone: "Asia/Shanghai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
     });
     return `[${timestamp}] [${level.toUpperCase()}] [${this.context}] ${message}`;
   }

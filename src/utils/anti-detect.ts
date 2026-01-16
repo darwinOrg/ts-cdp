@@ -154,10 +154,10 @@ export function getAntiDetectScript(): string {
 export async function injectAntiDetectScript(client: any): Promise<void> {
   const cdpClient = client.getClient ? client.getClient() : client;
   if (!cdpClient || !cdpClient.Runtime) {
-    throw new Error('CDP client not initialized or Runtime not available');
+    throw new Error("CDP client not initialized or Runtime not available");
   }
   await cdpClient.Runtime.evaluate({
     expression: getAntiDetectScript(),
-    returnByValue: true
+    returnByValue: true,
   });
 }

@@ -1,7 +1,7 @@
-import type { BrowserPage } from './page';
-import { createLogger } from '../utils/logger';
+import type { BrowserPage } from "./page";
+import { createLogger } from "../utils/logger";
 
-const logger = createLogger('BrowserLocator');
+const logger = createLogger("BrowserLocator");
 
 export interface LocatorOptions {
   timeout?: number;
@@ -13,20 +13,25 @@ export class BrowserLocator {
   private selectorChain: string[]; // 添加选择器链
   private options: LocatorOptions;
 
-  constructor(page: BrowserPage, selector: string, options: LocatorOptions = {}, selectorChain: string[] = []) {
+  constructor(
+    page: BrowserPage,
+    selector: string,
+    options: LocatorOptions = {},
+    selectorChain: string[] = [],
+  ) {
     this.page = page;
     this.selector = selector;
     this.selectorChain = [...selectorChain, selector]; // 保存选择器链
     this.options = {
       timeout: 10000,
-      ...options
+      ...options,
     };
   }
 
   async exists(): Promise<boolean> {
     try {
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}') !== null`
+        `document.querySelector('${this.selector}') !== null`,
       );
       return result || false;
     } catch (error) {
@@ -38,67 +43,72 @@ export class BrowserLocator {
   async getText(): Promise<string> {
     if (!(await this.exists())) {
       logger.debug(`locator[${this.selector}] getText: element does not exist`);
-      return '';
+      return "";
     }
 
     try {
       logger.debug(`locator[${this.selector}] getText: calling executeScript`);
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').innerText`
+        `document.querySelector('${this.selector}').innerText`,
       );
-      logger.debug(`locator[${this.selector}] getText result:`, result, 'type:', typeof result);
-      return result ? result.trim() : '';
+      logger.debug(
+        `locator[${this.selector}] getText result:`,
+        result,
+        "type:",
+        typeof result,
+      );
+      return result ? result.trim() : "";
     } catch (error) {
       logger.error(`locator[${this.selector}] get text error:`, error);
-      return '';
+      return "";
     }
   }
 
   async getAttribute(attr: string): Promise<string> {
     if (!(await this.exists())) {
-      return '';
+      return "";
     }
 
     try {
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').getAttribute('${attr}')`
+        `document.querySelector('${this.selector}').getAttribute('${attr}')`,
       );
-      return result ? result.trim() : '';
+      return result ? result.trim() : "";
     } catch (error) {
       logger.error(`locator[${this.selector}] get attribute error:`, error);
-      return '';
+      return "";
     }
   }
 
   async getHTML(): Promise<string> {
     if (!(await this.exists())) {
-      return '';
+      return "";
     }
 
     try {
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').outerHTML`
+        `document.querySelector('${this.selector}').outerHTML`,
       );
-      return result || '';
+      return result || "";
     } catch (error) {
       logger.error(`locator[${this.selector}] get html error:`, error);
-      return '';
+      return "";
     }
   }
 
   async getTextContent(): Promise<string> {
     if (!(await this.exists())) {
-      return '';
+      return "";
     }
 
     try {
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').textContent`
+        `document.querySelector('${this.selector}').textContent`,
       );
-      return result ? result.trim() : '';
+      return result ? result.trim() : "";
     } catch (error) {
       logger.error(`locator[${this.selector}] get text content error:`, error);
-      return '';
+      return "";
     }
   }
 
@@ -109,7 +119,7 @@ export class BrowserLocator {
 
     try {
       await this.page.executeScript(
-        `document.querySelector('${this.selector}').click()`
+        `document.querySelector('${this.selector}').click()`,
       );
     } catch (error) {
       logger.error(`locator[${this.selector}] click error:`, error);
@@ -134,7 +144,7 @@ export class BrowserLocator {
           });
           el.dispatchEvent(event);
         }
-        `
+        `,
       );
     } catch (error) {
       logger.error(`locator[${this.selector}] hover error:`, error);
@@ -149,25 +159,25 @@ export class BrowserLocator {
 
     try {
       const element = await this.page.executeScript(
-        `document.querySelector('${this.selector}')`
+        `document.querySelector('${this.selector}')`,
       );
-      
+
       // 清空现有值
       await this.page.executeScript(
-        `document.querySelector('${this.selector}').value = ''`
+        `document.querySelector('${this.selector}').value = ''`,
       );
-      
+
       // 设置新值
       await this.page.executeScript(
-        `document.querySelector('${this.selector}').value = '${value.replace(/'/g, "\\'")}'`
+        `document.querySelector('${this.selector}').value = '${value.replace(/'/g, "\\'")}'`,
       );
-      
+
       // 触发 input 事件
       await this.page.executeScript(
         `
         const event = new Event('input', { bubbles: true });
         document.querySelector('${this.selector}').dispatchEvent(event);
-        `
+        `,
       );
     } catch (error) {
       logger.error(`locator[${this.selector}] set value error:`, error);
@@ -188,7 +198,7 @@ export class BrowserLocator {
           const style = window.getComputedStyle(el);
           return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
         })()
-        `
+        `,
       );
       return result || false;
     } catch (error) {
@@ -207,10 +217,10 @@ export class BrowserLocator {
     }
 
     try {
-      const classAttr = await this.getAttribute('class');
+      const classAttr = await this.getAttribute("class");
       if (!classAttr) return false;
 
-      const classes = classAttr.split(/\s+/).filter(c => c);
+      const classes = classAttr.split(/\s+/).filter((c) => c);
       return classes.includes(className);
     } catch (error) {
       logger.error(`locator[${this.selector}] has class error:`, error);
@@ -221,7 +231,7 @@ export class BrowserLocator {
   async getAllTexts(): Promise<string[]> {
     try {
       const result = await this.page.executeScript(
-        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.innerText)`
+        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.innerText)`,
       );
       return result || [];
     } catch (error) {
@@ -233,11 +243,14 @@ export class BrowserLocator {
   async getAllAttributes(attr: string): Promise<string[]> {
     try {
       const result = await this.page.executeScript(
-        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.getAttribute('${attr}'))`
+        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.getAttribute('${attr}'))`,
       );
       return result || [];
     } catch (error) {
-      logger.error(`locator[${this.selector}] get all attributes error:`, error);
+      logger.error(
+        `locator[${this.selector}] get all attributes error:`,
+        error,
+      );
       return [];
     }
   }
@@ -245,7 +258,7 @@ export class BrowserLocator {
   async getCount(): Promise<number> {
     try {
       const result = await this.page.executeScript(
-        `document.querySelectorAll('${this.selector}').length`
+        `document.querySelectorAll('${this.selector}').length`,
       );
       return result || 0;
     } catch (error) {
@@ -259,10 +272,10 @@ export class BrowserLocator {
   // ExtLocator - 嵌套定位器
   extLocator(selector: string): BrowserLocator {
     return new BrowserLocator(
-      this.page, 
-      `${this.selector} ${selector}`, 
+      this.page,
+      `${this.selector} ${selector}`,
       this.options,
-      this.selectorChain // 传递选择器链
+      this.selectorChain, // 传递选择器链
     );
   }
 
@@ -275,7 +288,14 @@ export class BrowserLocator {
     for (let i = 0; i < count; i++) {
       // 使用 :nth-of-type 而不是 :nth-child，更准确地选择匹配的元素
       const indexSelector = `${this.selector}:nth-of-type(${i + 1})`;
-      locators.push(new BrowserLocator(this.page, indexSelector, this.options, this.selectorChain));
+      locators.push(
+        new BrowserLocator(
+          this.page,
+          indexSelector,
+          this.options,
+          this.selectorChain,
+        ),
+      );
     }
     return locators;
   }
@@ -315,7 +335,7 @@ export class BrowserLocator {
     if (!(await this.exists())) {
       throw new Error(`Element not found: ${this.selector}`);
     }
-    
+
     await this.click();
   }
 

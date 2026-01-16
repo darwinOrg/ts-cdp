@@ -1,6 +1,6 @@
 export function getPureUrl(url: string): string {
   const u = new URL(url);
-  u.search = '';
+  u.search = "";
   return u.toString();
 }
 

@@ -70,7 +70,7 @@ export interface HAR {
 
 export type NetworkCallback = (response: any, request?: string) => void;
 
-export type LoginState = 'login' | 'logout';
+export type LoginState = "login" | "logout";
 
 export interface LoginCallback {
   (state: LoginState): void;

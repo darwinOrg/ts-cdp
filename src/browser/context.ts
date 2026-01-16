@@ -1,9 +1,9 @@
-import type { CDPClient } from './client';
-import { BrowserPage, type PageOptions } from './page';
-import { createLogger } from '../utils/logger';
-import { launch, type ChromeInstance } from '../launcher';
+import type { CDPClient } from "./client";
+import { BrowserPage, type PageOptions } from "./page";
+import { createLogger } from "../utils/logger";
+import { launch, type ChromeInstance } from "../launcher";
 
-const logger = createLogger('BrowserContext');
+const logger = createLogger("BrowserContext");
 
 export interface BrowserContextOptions {
   userDataDir?: string;
@@ -18,7 +18,11 @@ export class BrowserContext {
   private pages: BrowserPage[];
   private options: BrowserContextOptions;
 
-  constructor(cdpClient: CDPClient | null, chrome: ChromeInstance | null, options: BrowserContextOptions = {}) {
+  constructor(
+    cdpClient: CDPClient | null,
+    chrome: ChromeInstance | null,
+    options: BrowserContextOptions = {},
+  ) {
     this.cdpClient = cdpClient;
     this.chrome = chrome;
     this.pages = [];
@@ -28,18 +32,20 @@ export class BrowserContext {
   /**
    * 创建新的浏览器上下文（启动浏览器）
    */
-  static async create(options: BrowserContextOptions = {}): Promise<BrowserContext> {
+  static async create(
+    options: BrowserContextOptions = {},
+  ): Promise<BrowserContext> {
     const chrome = await launch({
       chromePath: options.browserPath,
       userDataDir: options.userDataDir,
       port: options.remoteDebuggingPort,
-      headless: options.headless
+      headless: options.headless,
     });
 
-    const CDPClientClass = (await import('./client')).CDPClient;
+    const CDPClientClass = (await import("./client")).CDPClient;
     const cdpClient = new CDPClientClass({
       port: chrome.port,
-      name: `browser-context-${Date.now()}`
+      name: `browser-context-${Date.now()}`,
     });
 
     await cdpClient.connect();
@@ -51,10 +57,10 @@ export class BrowserContext {
    * 连接到现有的浏览器上下文
    */
   static async connect(port: number): Promise<BrowserContext> {
-    const CDPClientClass = (await import('./client')).CDPClient;
+    const CDPClientClass = (await import("./client")).CDPClient;
     const cdpClient = new CDPClientClass({
       port: port,
-      name: `browser-context-${Date.now()}`
+      name: `browser-context-${Date.now()}`,
     });
 
     await cdpClient.connect();
@@ -67,7 +73,7 @@ export class BrowserContext {
    */
   async getOrNewPage(options: PageOptions = {}): Promise<BrowserPage> {
     // 清理已关闭的页面
-    this.pages = this.pages.filter(page => !page.isClosed());
+    this.pages = this.pages.filter((page) => !page.isClosed());
 
     // 查找未锁定的页面
     for (const page of this.pages) {
@@ -86,12 +92,12 @@ export class BrowserContext {
    */
   async newPage(options: PageOptions = {}): Promise<BrowserPage> {
     if (!this.cdpClient) {
-      throw new Error('CDP client not initialized');
+      throw new Error("CDP client not initialized");
     }
 
     const page = new BrowserPage(this.cdpClient, {
       ...options,
-      name: options.name || `page-${Date.now()}`
+      name: options.name || `page-${Date.now()}`,
     });
 
     await page.init();
@@ -145,7 +151,7 @@ export class BrowserContext {
    * 获取所有页面
    */
   getPages(): BrowserPage[] {
-    return this.pages.filter(page => !page.isClosed());
+    return this.pages.filter((page) => !page.isClosed());
   }
 
   /**

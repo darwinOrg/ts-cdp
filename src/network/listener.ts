@@ -1,16 +1,16 @@
-import CDP from 'chrome-remote-interface';
-import type Protocol from 'devtools-protocol/types/protocol.d';
-import { getPureUrl } from '../utils/url';
-import { createLogger } from '../utils/logger';
+import CDP from "chrome-remote-interface";
+import type Protocol from "devtools-protocol/types/protocol.d";
+import { getPureUrl } from "../utils/url";
+import { createLogger } from "../utils/logger";
 import type {
   NetworkCallback,
   NetworkListenerConfig,
   RequestData,
   HAR,
   NetworkRequestInfo,
-} from '../types';
+} from "../types";
 
-const logger = createLogger('NetworkListener');
+const logger = createLogger("NetworkListener");
 
 export class NetworkListener {
   private client: CDP.Client;
@@ -29,59 +29,65 @@ export class NetworkListener {
     this.initialized = false;
     this.har = {
       log: {
-        version: '1.2',
-        creator: { name: 'ts-cdp', version: '1.0.0' },
-        entries: []
-      }
+        version: "1.2",
+        creator: { name: "ts-cdp", version: "1.0.0" },
+        entries: [],
+      },
     };
     this.config = {
       watchUrls: config.watchUrls || [],
-      enableHAR: config.enableHAR !== false
+      enableHAR: config.enableHAR !== false,
     };
   }
 
   async init(): Promise<void> {
     if (this.initialized) {
-      logger.debug('NetworkListener already initialized');
+      logger.debug("NetworkListener already initialized");
       return;
     }
 
     const { Network } = this.client;
-    
-    Network.requestWillBeSent((event: Protocol.Network.RequestWillBeSentEvent) => {
-      this.handleRequestWillBeSent(event);
-    });
+
+    Network.requestWillBeSent(
+      (event: Protocol.Network.RequestWillBeSentEvent) => {
+        this.handleRequestWillBeSent(event);
+      },
+    );
 
     Network.responseReceived(async (params) => {
       await this.handleResponseReceived(params);
     });
 
-    Network.loadingFinished(async (event: Protocol.Network.LoadingFinishedEvent) => {
-      await this.handleLoadingFinished(event);
-    });
+    Network.loadingFinished(
+      async (event: Protocol.Network.LoadingFinishedEvent) => {
+        await this.handleLoadingFinished(event);
+      },
+    );
 
     Network.loadingFailed((event: Protocol.Network.LoadingFailedEvent) => {
       this.handleLoadingFailed(event);
     });
 
     this.initialized = true;
-    logger.debug('NetworkListener initialized');
+    logger.debug("NetworkListener initialized");
   }
 
-  private handleRequestWillBeSent(event: Protocol.Network.RequestWillBeSentEvent): void {
+  private handleRequestWillBeSent(
+    event: Protocol.Network.RequestWillBeSentEvent,
+  ): void {
     const { requestId, request, type, timestamp } = event;
     const { url, method } = request;
     const pureUrl = getPureUrl(url);
 
     // 检查是否是需要拦截的URL（支持正则表达式）
     for (const [pattern, callback] of this.callbacks) {
-      if (typeof callback === 'function' && method !== 'OPTIONS') {
+      if (typeof callback === "function" && method !== "OPTIONS") {
         // 检查是否匹配（支持正则表达式）
         const regex = new RegExp(pattern);
         if (regex.test(url)) {
           this.requestIds.set(requestId, {
             pattern,
-            params: callback.length
+            params: callback.length,
           });
           break;
         }
@@ -89,14 +95,14 @@ export class NetworkListener {
     }
 
     // 只记录 XHR 请求用于监控（Fetch 请求通常是页面资源，不需要记录）
-    if (type === 'XHR') {
+    if (type === "XHR") {
       this.dumpMap.set(requestId, {
         requestId,
         url,
         method,
         headers: request.headers,
         type,
-        timestamp
+        timestamp,
       });
       logger.debug(`[${type}] → ${method} ${url}`);
     }
@@ -106,15 +112,17 @@ export class NetworkListener {
     const { requestId, response, timestamp, type } = params;
 
     // 只处理 XHR 请求，不处理 Fetch 请求（Fetch 请求通常是页面资源）
-    if (type !== 'XHR') {
+    if (type !== "XHR") {
       return;
     }
 
     try {
       // 处理 watchUrls
       if (this.config.watchUrls && this.config.watchUrls.length > 0) {
-        const shouldWatch = this.config.watchUrls.some(watchUrl => response.url.includes(watchUrl));
-        
+        const shouldWatch = this.config.watchUrls.some((watchUrl) =>
+          response.url.includes(watchUrl),
+        );
+
         if (shouldWatch) {
           const req = this.dumpMap.get(requestId);
 
@@ -124,25 +132,30 @@ export class NetworkListener {
 
             if (this.config.enableHAR) {
               this.har.log.entries.push({
-                startedDateTime: new Date((req?.timestamp || timestamp) * 1000).toISOString(),
+                startedDateTime: new Date(
+                  (req?.timestamp || timestamp) * 1000,
+                ).toISOString(),
                 time: (timestamp - (req?.timestamp || timestamp)) * 1000,
                 request: {
-                  method: req?.method || 'GET',
+                  method: req?.method || "GET",
                   url: req?.url || response.url,
-                  headers: req?.headers
+                  headers: req?.headers,
                 },
                 response: {
                   status: response.status,
                   statusText: response.statusText,
                   mimeType: response.mimeType,
-                  text: res.body
-                }
+                  text: res.body,
+                },
               });
             }
 
             logger.debug(`[watchUrls] ← ${response.status} ${response.url}`);
           } catch (getBodyError) {
-            logger.debug(`Could not get response body for HAR logging for ${requestId}:`, getBodyError);
+            logger.debug(
+              `Could not get response body for HAR logging for ${requestId}:`,
+              getBodyError,
+            );
           }
         }
       }
@@ -153,7 +166,9 @@ export class NetworkListener {
     this.dumpMap.delete(requestId);
   }
 
-  private async handleLoadingFinished(event: Protocol.Network.LoadingFinishedEvent): Promise<void> {
+  private async handleLoadingFinished(
+    event: Protocol.Network.LoadingFinishedEvent,
+  ): Promise<void> {
     const { requestId } = event;
 
     if (this.requestIds.has(requestId)) {
@@ -165,11 +180,16 @@ export class NetworkListener {
         let requestBody;
         if (params === 2) {
           try {
-            const requestPostData = await Network.getRequestPostData({ requestId });
+            const requestPostData = await Network.getRequestPostData({
+              requestId,
+            });
             requestBody = requestPostData.postData;
           } catch (requestError) {
             // 某些请求可能无法获取请求体，记录但不中断处理
-            logger.debug(`Could not get request body for ${requestId}:`, requestError);
+            logger.debug(
+              `Could not get request body for ${requestId}:`,
+              requestError,
+            );
           }
         }
 
@@ -179,14 +199,17 @@ export class NetworkListener {
           responseBody = await Network.getResponseBody({ requestId });
         } catch (responseError) {
           // 某些响应可能无法获取响应体（如二进制文件），记录但不中断处理
-          logger.debug(`Could not get response body for ${requestId}:`, responseError);
+          logger.debug(
+            `Could not get response body for ${requestId}:`,
+            responseError,
+          );
           this.requestIds.delete(requestId);
           return;
         }
 
         const callback = this.callbacks.get(pattern);
 
-        if (typeof callback === 'function') {
+        if (typeof callback === "function") {
           let parsedResponse = responseBody.body;
 
           // 尝试解析JSON，如果失败则使用原始字符串
@@ -195,7 +218,10 @@ export class NetworkListener {
               parsedResponse = JSON.parse(responseBody.body);
             }
           } catch (parseError) {
-            logger.debug(`Could not parse response as JSON for ${pattern}, using raw response:`, parseError);
+            logger.debug(
+              `Could not parse response as JSON for ${pattern}, using raw response:`,
+              parseError,
+            );
             // 不中断处理，使用原始响应体
           }
 
@@ -211,11 +237,13 @@ export class NetworkListener {
     }
   }
 
-  private handleLoadingFailed(event: Protocol.Network.LoadingFailedEvent): void {
+  private handleLoadingFailed(
+    event: Protocol.Network.LoadingFailedEvent,
+  ): void {
     const { requestId, errorText, type } = event;
 
     // 只记录 XHR 请求的失败
-    if (type === 'XHR') {
+    if (type === "XHR") {
       logger.warn(`Network request failed: ${errorText}`, { requestId });
     }
 
