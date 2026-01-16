@@ -381,7 +381,7 @@ export class BrowserPage {
   async expectResponseText(urlOrPredicate: string, callback: () => Promise<void>): Promise<string> {
     return new Promise((resolve, reject) => {
       const urlPattern = urlOrPredicate;
-      let listenerActive = true;
+      let listenerActive = false; // 初始状态为不活跃
       
       const responseListener = (params: any) => {
         if (!listenerActive) return;
@@ -397,6 +397,7 @@ export class BrowserPage {
               .then((result: any) => {
                 const text = result.body;
                 if (text) {
+                  logger.debug(`expectResponseText: matched ${urlPattern} at ${new Date().toISOString()}`);
                   resolve(text);
                 } else {
                   reject(new Error('Response body is empty'));
@@ -407,13 +408,15 @@ export class BrowserPage {
         }
       };
       
+      // 先添加监听器（但不处理事件）
       this.client.Network.on('responseReceived', responseListener);
       
       // 执行回调
       callback()
         .then(() => {
-          // 标记监听器为非活跃状态
-          listenerActive = false;
+          // 回调完成后，激活监听器
+          listenerActive = true;
+          logger.debug(`expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`);
         })
         .catch(reject);
     });
