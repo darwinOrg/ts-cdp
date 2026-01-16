@@ -384,24 +384,37 @@ export class BrowserPage {
       let listenerActive = false; // 初始状态为不活跃
       let listenerCalled = false; // 标记监听器是否被调用
       
-      logger.debug(`expectResponseText: starting for ${urlPattern}`);
+      // 将 ** 转换为通配符
+      const pattern = urlPattern.replace(/\*\*/g, '.*');
+      
+      logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
       
       const responseListener = async (params: any) => {
         listenerCalled = true;
-        logger.debug(`expectResponseText: listener called, listenerActive=${listenerActive}`);
         
         if (!listenerActive) {
           logger.debug(`expectResponseText: ignoring event, listener not active`);
           return;
         }
         
-        // responseReceived 事件不需要检查 type 字段
+        // responseReceived 事件参数结构
         const response = params.response;
-        logger.debug(`expectResponseText: responseReceived for ${response.url}`);
+        const request = params.request;
+        const type = params.type; // type 字段在 params 中
         
-        if (response.url.includes(urlPattern)) {
+        logger.debug(`expectResponseText: responseReceived for ${response.url}, type: ${type}, resourceType: ${response.resourceType}`);
+        
+        // 只处理 XHR 请求
+        if (type !== 'XHR') {
+          logger.debug(`expectResponseText: skipping non-XHR request: ${type}`);
+          return;
+        }
+        
+        // 使用通配符匹配 URL
+        const regex = new RegExp(pattern);
+        if (regex.test(response.url)) {
           listenerActive = false;
-          logger.debug(`expectResponseText: matched ${urlPattern}, getting response body`);
+          logger.debug(`expectResponseText: matched ${urlPattern} (${pattern}) for ${response.url}, getting response body`);
           
           // 获取响应体
           this.client.Network.getResponseBody({ requestId: params.requestId })
