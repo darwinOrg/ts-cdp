@@ -46,10 +46,8 @@ export class BrowserPage {
     if (this.initialized) return;
 
     try {
-      // Network 已经在 CDPClient 中启用，不需要再次启用
-      if (this.page) await this.page.enable();
-      if (this.runtime) await this.runtime.enable();
-      if (this.dom) await this.dom.enable();
+      // Page、Runtime、DOM、Network 已经在 CDPClient 中启用，不需要再次启用
+      // 这些领域在 CDP 客户端连接时就已经启用了
       
       this.initialized = true;
     } catch (error) {
