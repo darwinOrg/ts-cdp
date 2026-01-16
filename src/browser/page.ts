@@ -389,20 +389,8 @@ export class BrowserPage {
       
       logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
       
-      const removeListener = () => {
-        if (!listenerRemoved) {
-          try {
-            this.client.Network.responseReceived.off(responseListener);
-            listenerRemoved = true;
-            logger.debug(`expectResponseText: listener removed for ${urlPattern}`);
-          } catch (error) {
-            logger.warn(`expectResponseText: failed to remove listener: ${error}`);
-          }
-        }
-      };
-      
       const responseListener = async (params: any) => {
-        if (!listenerActive) {
+        if (!listenerActive || listenerRemoved) {
           return;
         }
         
@@ -422,7 +410,7 @@ export class BrowserPage {
         const regex = new RegExp(pattern);
         if (regex.test(response.url)) {
           listenerActive = false;
-          removeListener();
+          listenerRemoved = true;
           logger.debug(`expectResponseText: matched ${urlPattern} (${pattern}) for ${response.url}, getting response body`);
           
           // 获取响应体
@@ -444,9 +432,9 @@ export class BrowserPage {
         }
       };
       
-      // 先添加监听器（但不处理事件）
+      // 添加监听器
       logger.debug(`expectResponseText: adding response listener`);
-      this.client.Network.responseReceived.on(responseListener);
+      this.client.Network.responseReceived(responseListener);
       
       // 执行回调
       callback()
@@ -458,14 +446,14 @@ export class BrowserPage {
           // 设置超时检查
           setTimeout(() => {
             if (listenerActive && !listenerRemoved) {
-              removeListener();
+              listenerRemoved = true;
               logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
               reject(new Error(`Timeout waiting for response: ${urlPattern}`));
             }
           }, 10000);
         })
         .catch((err: any) => {
-          removeListener();
+          listenerRemoved = true;
           logger.error(`expectResponseText: callback failed: ${err}`);
           reject(err);
         });
