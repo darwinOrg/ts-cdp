@@ -369,7 +369,7 @@ export class BrowserHttpServer {
     // 等待加载状态 load
     this.app.post('/api/page/wait-for-load-state-load', async (req: Request, res: Response) => {
       try {
-        const { sessionId} = req.body;
+        const { sessionId } = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -398,7 +398,7 @@ export class BrowserHttpServer {
     // 等待 DOM 内容加载
     this.app.post('/api/page/wait-for-dom-content-loaded', async (req: Request, res: Response) => {
       try {
-        const { sessionId} = req.body;
+        const { sessionId } = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -427,7 +427,7 @@ export class BrowserHttpServer {
     // 等待选择器可见
     this.app.post('/api/page/wait-for-selector-visible', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector} = req.body;
+        const { sessionId, selector } = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
