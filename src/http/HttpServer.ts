@@ -136,7 +136,7 @@ export class BrowserHttpServer {
     // 导航到 URL
     this.app.post('/api/page/navigate', async (req: Request, res: Response) => {
       try {
-        const { sessionId, url, pageId } = req.body;
+        const { sessionId, url } = req.body;
 
         if (!sessionId || !url) {
           res.status(400).json({ success: false, error: 'sessionId and url are required' });
@@ -165,7 +165,7 @@ export class BrowserHttpServer {
     // 刷新页面
     this.app.post('/api/page/reload', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId } = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -194,7 +194,7 @@ export class BrowserHttpServer {
     // 执行 JavaScript
     this.app.post('/api/page/execute', async (req: Request, res: Response) => {
       try {
-        const { sessionId, script, pageId } = req.body;
+        const { sessionId, script } = req.body;
 
         if (!sessionId || !script) {
           res.status(400).json({ success: false, error: 'sessionId and script are required' });
@@ -223,7 +223,7 @@ export class BrowserHttpServer {
     // 获取页面标题
     this.app.get('/api/page/title', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.query;
+        const { sessionId } = req.query;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -252,7 +252,7 @@ export class BrowserHttpServer {
     // 获取页面 URL
     this.app.get('/api/page/url', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.query;
+        const { sessionId} = req.query;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -281,7 +281,7 @@ export class BrowserHttpServer {
     // 截图
     this.app.post('/api/page/screenshot', async (req: Request, res: Response) => {
       try {
-        const { sessionId, format = 'png', pageId } = req.body;
+        const { sessionId, format = 'png'} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -311,7 +311,7 @@ export class BrowserHttpServer {
     // 带加载状态的导航
     this.app.post('/api/page/navigate-with-loaded-state', async (req: Request, res: Response) => {
       try {
-        const { sessionId, url, pageId } = req.body;
+        const { sessionId, url} = req.body;
 
         if (!sessionId || !url) {
           res.status(400).json({ success: false, error: 'sessionId and url are required' });
@@ -340,7 +340,7 @@ export class BrowserHttpServer {
     // 带加载状态的刷新
     this.app.post('/api/page/reload-with-loaded-state', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -369,7 +369,7 @@ export class BrowserHttpServer {
     // 等待加载状态 load
     this.app.post('/api/page/wait-for-load-state-load', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -398,7 +398,7 @@ export class BrowserHttpServer {
     // 等待 DOM 内容加载
     this.app.post('/api/page/wait-for-dom-content-loaded', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -427,7 +427,7 @@ export class BrowserHttpServer {
     // 等待选择器可见
     this.app.post('/api/page/wait-for-selector-visible', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -458,7 +458,7 @@ export class BrowserHttpServer {
     // 检查元素是否存在
     this.app.post('/api/element/exists', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -488,7 +488,7 @@ export class BrowserHttpServer {
     // 获取元素文本
     this.app.post('/api/element/text', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -518,7 +518,7 @@ export class BrowserHttpServer {
     // 点击元素
     this.app.post('/api/element/click', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -548,7 +548,7 @@ export class BrowserHttpServer {
     // 鼠标悬停
     this.app.post('/api/element/hover', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -578,7 +578,7 @@ export class BrowserHttpServer {
     // 设置元素值
     this.app.post('/api/element/setValue', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, value, pageId } = req.body;
+        const { sessionId, selector, value} = req.body;
 
         if (!sessionId || !selector || value === undefined) {
           res.status(400).json({ success: false, error: 'sessionId, selector and value are required' });
@@ -608,7 +608,7 @@ export class BrowserHttpServer {
     // 等待元素
     this.app.post('/api/element/wait', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, timeout = 30000, pageId } = req.body;
+        const { sessionId, selector, timeout = 30000} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -638,7 +638,7 @@ export class BrowserHttpServer {
     // 获取元素属性
     this.app.post('/api/element/attribute', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, attribute, pageId } = req.body;
+        const { sessionId, selector, attribute} = req.body;
 
         if (!sessionId || !selector || !attribute) {
           res.status(400).json({ success: false, error: 'sessionId, selector and attribute are required' });
@@ -676,7 +676,7 @@ export class BrowserHttpServer {
     // 期望响应文本
     this.app.post('/api/page/expect-response-text', async (req: Request, res: Response) => {
       try {
-        const { sessionId, urlOrPredicate, callback, pageId } = req.body;
+        const { sessionId, urlOrPredicate, callback} = req.body;
 
         if (!sessionId || !urlOrPredicate) {
           res.status(400).json({ success: false, error: 'sessionId and urlOrPredicate are required' });
@@ -712,7 +712,7 @@ export class BrowserHttpServer {
     // 强制获取 inner text
     this.app.post('/api/page/must-inner-text', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -741,7 +741,7 @@ export class BrowserHttpServer {
     // 强制获取 text content
     this.app.post('/api/page/must-text-content', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -771,7 +771,7 @@ export class BrowserHttpServer {
     // 释放
     this.app.post('/api/page/release', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -800,7 +800,7 @@ export class BrowserHttpServer {
     // 关闭所有页面
     this.app.post('/api/page/close-all', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.body;
+        const { sessionId} = req.body;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -829,7 +829,7 @@ export class BrowserHttpServer {
     // 获取页面 HTML
     this.app.get('/api/page/html', async (req: Request, res: Response) => {
       try {
-        const { sessionId, pageId } = req.query;
+        const { sessionId} = req.query;
 
         if (!sessionId) {
           res.status(400).json({ success: false, error: 'sessionId is required' });
@@ -858,7 +858,7 @@ export class BrowserHttpServer {
     // 获取所有匹配元素的文本
     this.app.post('/api/element/all-texts', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
@@ -888,7 +888,7 @@ export class BrowserHttpServer {
     // 获取所有匹配元素的属性
     this.app.post('/api/element/all-attributes', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, attribute, pageId } = req.body;
+        const { sessionId, selector, attribute} = req.body;
 
         if (!sessionId || !selector || !attribute) {
           res.status(400).json({ success: false, error: 'sessionId, selector and attribute are required' });
@@ -918,7 +918,7 @@ export class BrowserHttpServer {
     // 获取元素数量
     this.app.post('/api/element/count', async (req: Request, res: Response) => {
       try {
-        const { sessionId, selector, pageId } = req.body;
+        const { sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
           res.status(400).json({ success: false, error: 'sessionId and selector are required' });
