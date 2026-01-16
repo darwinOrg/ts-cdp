@@ -405,7 +405,6 @@ export class BrowserPage {
         
         // 只处理 XHR 请求
         if (type !== 'XHR') {
-          logger.debug(`expectResponseText: skipping non-XHR request: ${type}`);
           return;
         }
         
