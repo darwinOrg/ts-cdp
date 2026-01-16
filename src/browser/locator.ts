@@ -37,14 +37,16 @@ export class BrowserLocator {
 
   async getText(): Promise<string> {
     if (!(await this.exists())) {
+      logger.debug(`locator[${this.selector}] getText: element does not exist`);
       return '';
     }
 
     try {
+      logger.debug(`locator[${this.selector}] getText: calling executeScript`);
       const result = await this.page.executeScript(
         `document.querySelector('${this.selector}').innerText`
       );
-      logger.debug(`locator[${this.selector}] getText result:`, result);
+      logger.debug(`locator[${this.selector}] getText result:`, result, 'type:', typeof result);
       return result ? result.trim() : '';
     } catch (error) {
       logger.error(`locator[${this.selector}] get text error:`, error);
