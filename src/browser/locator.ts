@@ -180,9 +180,11 @@ export class BrowserLocator {
     try {
       const result = await this.page['executeScript'](
         `
-        const el = document.querySelector('${this.selector}');
-        const style = window.getComputedStyle(el);
-        return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
+        (function() {
+          const el = document.querySelector('${this.selector}');
+          const style = window.getComputedStyle(el);
+          return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
+        })()
         `
       );
       return result || false;
