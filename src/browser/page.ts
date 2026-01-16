@@ -177,17 +177,25 @@ export class BrowserPage {
             expression: `document.querySelector('${selector}') !== null`
           });
 
-          if (result?.result?.value) {
+          const elementExists = result?.result?.value;
+          logger.debug(`waitForSelector: selector=${selector}, elementExists=${elementExists}, result=${JSON.stringify(result)}`);
+
+          if (elementExists) {
             if (options.state === 'visible') {
               const visible = await this.runtime?.evaluate({
                 expression: `
-                  const el = document.querySelector('${selector}');
-                  const style = window.getComputedStyle(el);
-                  return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
+                  (function() {
+                    const el = document.querySelector('${selector}');
+                    const style = window.getComputedStyle(el);
+                    return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
+                  })()
                 `
               });
-              
-              if (visible?.result?.value) {
+
+              const isVisible = visible?.result?.value;
+              logger.debug(`waitForSelector: selector=${selector}, isVisible=${isVisible}, visibleResult=${JSON.stringify(visible)}`);
+
+              if (isVisible) {
                 resolve();
               } else {
                 setTimeout(checkSelector, 100);
@@ -199,6 +207,7 @@ export class BrowserPage {
             setTimeout(checkSelector, 100);
           }
         } catch (error) {
+          logger.error(`waitForSelector: selector=${selector}, error=${error}`);
           setTimeout(checkSelector, 100);
         }
       };
