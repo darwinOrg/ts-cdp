@@ -183,7 +183,7 @@ export class BrowserPage {
                 expression: `
                   const el = document.querySelector('${selector}');
                   const style = window.getComputedStyle(el);
-                  return style.display !== 'none' && style.visibility !== 'hidden';
+                  return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
                 `
               });
               
