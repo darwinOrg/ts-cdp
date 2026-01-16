@@ -382,16 +382,26 @@ export class BrowserPage {
     return new Promise((resolve, reject) => {
       const urlPattern = urlOrPredicate;
       let listenerActive = false; // 初始状态为不活跃
-      let listenerCalled = false; // 标记监听器是否被调用
+      let listenerRemoved = false; // 标记监听器是否已被移除
       
       // 将 ** 转换为通配符
       const pattern = urlPattern.replace(/\*\*/g, '.*');
       
       logger.debug(`expectResponseText: starting for ${urlPattern}, pattern: ${pattern}`);
       
+      const removeListener = () => {
+        if (!listenerRemoved) {
+          try {
+            this.client.Network.responseReceived.off(responseListener);
+            listenerRemoved = true;
+            logger.debug(`expectResponseText: listener removed for ${urlPattern}`);
+          } catch (error) {
+            logger.warn(`expectResponseText: failed to remove listener: ${error}`);
+          }
+        }
+      };
+      
       const responseListener = async (params: any) => {
-        listenerCalled = true;
-        
         if (!listenerActive) {
           return;
         }
@@ -412,6 +422,7 @@ export class BrowserPage {
         const regex = new RegExp(pattern);
         if (regex.test(response.url)) {
           listenerActive = false;
+          removeListener();
           logger.debug(`expectResponseText: matched ${urlPattern} (${pattern}) for ${response.url}, getting response body`);
           
           // 获取响应体
@@ -435,7 +446,7 @@ export class BrowserPage {
       
       // 先添加监听器（但不处理事件）
       logger.debug(`expectResponseText: adding response listener`);
-      this.client.Network.responseReceived(responseListener);
+      this.client.Network.responseReceived.on(responseListener);
       
       // 执行回调
       callback()
@@ -446,12 +457,15 @@ export class BrowserPage {
           
           // 设置超时检查
           setTimeout(() => {
-            if (listenerActive && !listenerCalled) {
-              logger.warn(`expectResponseText: no response received within 10 seconds for ${urlPattern}`);
+            if (listenerActive && !listenerRemoved) {
+              removeListener();
+              logger.warn(`expectResponseText: timeout waiting for ${urlPattern}`);
+              reject(new Error(`Timeout waiting for response: ${urlPattern}`));
             }
           }, 10000);
         })
         .catch((err: any) => {
+          removeListener();
           logger.error(`expectResponseText: callback failed: ${err}`);
           reject(err);
         });
