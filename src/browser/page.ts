@@ -93,12 +93,14 @@ export class BrowserPage {
 
     await this.page.reload();
     
+    // 简化等待逻辑，不使用频繁的 Runtime.evaluate
     if (opts.waitUntil === 'domcontentloaded') {
-      await this.waitForDOMContentLoaded(opts.timeout);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } else if (opts.waitUntil === 'networkidle') {
-      await this.waitForNetworkIdle(opts.timeout);
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } else {
-      await this.waitForLoadState('load', opts.timeout);
+      // 默认等待 3 秒
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
 
@@ -168,7 +170,6 @@ export class BrowserPage {
           });
 
           const elementExists = result?.result?.value;
-          logger.debug(`waitForSelector: selector=${selector}, elementExists=${elementExists}, result=${JSON.stringify(result)}`);
 
           if (elementExists) {
             if (options.state === 'visible') {
@@ -183,22 +184,20 @@ export class BrowserPage {
               });
 
               const isVisible = visible?.result?.value;
-              logger.debug(`waitForSelector: selector=${selector}, isVisible=${isVisible}, visibleResult=${JSON.stringify(visible)}`);
 
               if (isVisible) {
                 resolve();
               } else {
-                setTimeout(checkSelector, 100);
+                setTimeout(checkSelector, 500);
               }
             } else {
               resolve();
             }
           } else {
-            setTimeout(checkSelector, 100);
+            setTimeout(checkSelector, 500);
           }
         } catch (error) {
-          logger.error(`waitForSelector: selector=${selector}, error=${error}`);
-          setTimeout(checkSelector, 100);
+          setTimeout(checkSelector, 500);
         }
       };
 
