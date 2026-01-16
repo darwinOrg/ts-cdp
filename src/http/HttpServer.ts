@@ -228,7 +228,7 @@ export class BrowserHttpServer {
           session.pages.delete(pageId);
         }
 
-        res.json({ success: true });
+        res.json({ success: true, pageId });
       } catch (error) {
         logger.error('Failed to close page:', error);
         res.status(500).json({
@@ -254,10 +254,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.navigate(url);
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to navigate:', error);
         res.status(500).json({
@@ -283,10 +283,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.reload();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to reload:', error);
         res.status(500).json({
@@ -312,7 +312,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const result = await page.evaluate(script);
 
         res.json({ success: true, result });
@@ -341,10 +341,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId as string);
         const title = await page.getTitle();
 
-        res.json({ success: true, data: { title } });
+        res.json({ success: true, data: { title }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get title:', error);
         res.status(500).json({
@@ -370,10 +370,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
-        const url = await page.getUrl();
+        const { page, pageId: actualPageId } = this.getPage(session, pageId as string);
+        const pageUrl = await page.getUrl();
 
-        res.json({ success: true, data: { url } });
+        res.json({ success: true, data: { url: pageUrl }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get URL:', error);
         res.status(500).json({
@@ -399,7 +399,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const screenshot = await page.screenshot(format);
 
         res.setHeader('Content-Type', `image/${format}`);
@@ -429,10 +429,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.navigateWithLoadedState(url);
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to navigate with loaded state:', error);
         res.status(500).json({
@@ -458,10 +458,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.reloadWithLoadedState();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to reload with loaded state:', error);
         res.status(500).json({
@@ -487,10 +487,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.waitForLoadStateLoad();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to wait for load state:', error);
         res.status(500).json({
@@ -516,10 +516,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.waitForDomContentLoaded();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to wait for DOM content loaded:', error);
         res.status(500).json({
@@ -545,10 +545,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.waitForSelectorStateVisible(selector);
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to wait for selector visible:', error);
         res.status(500).json({
@@ -576,11 +576,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         const exists = await locator.exists();
 
-        res.json({ success: true, data: { exists } });
+        res.json({ success: true, data: { exists }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to check element exists:', error);
         res.status(500).json({
@@ -606,11 +606,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         const text = await locator.getText();
 
-        res.json({ success: true, data: { text } });
+        res.json({ success: true, data: { text }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get element text:', error);
         res.status(500).json({
@@ -636,11 +636,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         await locator.click();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to click element:', error);
         res.status(500).json({
@@ -666,11 +666,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         await locator.hover();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to hover element:', error);
         res.status(500).json({
@@ -696,11 +696,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         await locator.setValue(value);
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to set element value:', error);
         res.status(500).json({
@@ -726,11 +726,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         await page.waitForSelector(selector, { timeout });
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to wait for element:', error);
         res.status(500).json({
@@ -756,11 +756,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         const value = await locator.getAttribute(attribute);
 
-        res.json({ success: true, data: { value } });
+        res.json({ success: true, data: { value }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get element attribute:', error);
         res.status(500).json({
@@ -794,7 +794,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const text = await page.expectResponseText(
           urlOrPredicate,
           async () => {
@@ -804,7 +804,7 @@ export class BrowserHttpServer {
           }
         );
 
-        res.json({ success: true, data: { text } });
+        res.json({ success: true, data: { text }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to expect response text:', error);
         res.status(500).json({
@@ -830,10 +830,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const text = await page.mustInnerText(selector);
 
-        res.json({ success: true, data: { text } });
+        res.json({ success: true, data: { text }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get inner text:', error);
         res.status(500).json({
@@ -859,10 +859,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const text = await page.mustTextContent(selector);
 
-        res.json({ success: true, data: { text } });
+        res.json({ success: true, data: { text }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get text content:', error);
         res.status(500).json({
@@ -889,10 +889,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         page.release();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to release:', error);
         res.status(500).json({
@@ -918,10 +918,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         await page.closeAll();
 
-        res.json({ success: true });
+        res.json({ success: true, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to close all:', error);
         res.status(500).json({
@@ -947,7 +947,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const newPage = await page.expectExtPage(async () => {
           if (callback) {
             await page.evaluate(callback);
@@ -983,10 +983,10 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId as string);
         const html = await page.getHTML();
 
-        res.json({ success: true, data: { html } });
+        res.json({ success: true, data: { html }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get HTML:', error);
         res.status(500).json({
@@ -1012,9 +1012,9 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
-        const texts = await locator.mustAllInnerTexts();
+const texts = await locator.getAllTexts();
 
         res.json({ success: true, data: { texts } });
       } catch (error) {
@@ -1042,11 +1042,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         const attributes = await locator.mustAllGetAttributes(attribute);
 
-        res.json({ success: true, data: { attributes } });
+        res.json({ success: true, data: { attributes }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get all element attributes:', error);
         res.status(500).json({
@@ -1072,11 +1072,11 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const { page, pageId: actualPageId } = this.getPage(session, pageId);
         const locator = page.locator(selector);
         const count = await locator.getCount();
 
-        res.json({ success: true, data: { count } });
+        res.json({ success: true, data: { count }, pageId: actualPageId });
       } catch (error) {
         logger.error('Failed to get element count:', error);
         res.status(500).json({
@@ -1102,7 +1102,7 @@ export class BrowserHttpServer {
   }
 
   // 辅助方法：获取页面(支持 pageId 参数,默认使用 'default')
-  private getPage(session: BrowserSession, pageId?: string): BrowserPage {
+  private getPage(session: BrowserSession, pageId?: string): { page: BrowserPage; pageId: string } {
     const id = pageId || 'default';
     let page = session.pages.get(id);
     
@@ -1116,7 +1116,7 @@ export class BrowserHttpServer {
       session.pages.set(id, page);
     }
     
-    return page;
+    return { page, pageId: id };
   }
 
   async start(): Promise<void> {
