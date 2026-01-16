@@ -368,7 +368,7 @@ export class BrowserPage {
       callback()
         .then(() => {
           // 移除监听器
-          this.client.Target.removeListener('targetCreated', targetCreatedListener);
+          this.client.Target.off('targetCreated', targetCreatedListener);
         })
         .catch(reject);
     });
@@ -383,7 +383,7 @@ export class BrowserPage {
           const response = params.response;
           
           if (response.url.includes(urlPattern)) {
-            this.client.Network.responseReceived.removeListener(responseListener);
+            this.client.Network.off('responseReceived', responseListener);
             
             // 获取响应体
             this.client.Network.getResponseBody({ requestId: params.requestId })
@@ -406,7 +406,7 @@ export class BrowserPage {
       callback()
         .then(() => {
           // 移除监听器
-          this.client.Network.removeListener('responseReceived', responseListener);
+          this.client.Network.off('responseReceived', responseListener);
         })
         .catch(reject);
     });
