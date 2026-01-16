@@ -10,7 +10,7 @@ export interface BrowserSession {
   sessionId: string;
   chrome: any;
   client: CDPClient;
-  pages: Map<string, BrowserPage>; // 支持多页面管理
+  page: BrowserPage; // 单个页面
   isExternal: boolean; // 标识是否连接到外部浏览器
 }
 
@@ -76,29 +76,20 @@ export class BrowserHttpServer {
         const chrome = await launch({ headless });
         const client = new CDPClient({ port: chrome.port, name: sessionId });
         await client.connect();
-        
-        // 获取所有已存在的页面
-        const targets = await client.getPages();
-        const pages = new Map<string, BrowserPage>();
-        
-        // 包装已存在的页面
-        for (let i = 0; i < targets.length; i++) {
-          const target = targets[i];
-          const pageId = i === 0 ? 'default' : `page-${i}`;
-          const page = new BrowserPage(client);
-          pages.set(pageId, page);
-          logger.debug(`Wrapped existing page ${pageId} for target ${target.targetId}`);
-        }
+
+        // 创建 BrowserPage，使用默认的第一个 tab 页面
+        const page = new BrowserPage(client, { name: `${sessionId}-page` });
+        await page.init();
 
         this.clients.set(sessionId, {
           sessionId,
           chrome,
           client,
-          pages,
+          page,
           isExternal: false
         });
 
-        res.json({ success: true, data: { sessionId, pages: Array.from(pages.keys()) } });
+        res.json({ success: true, data: { sessionId } });
       } catch (error) {
         logger.error('Failed to start browser:', error);
         res.status(500).json({
@@ -140,127 +131,7 @@ export class BrowserHttpServer {
       }
     });
 
-    // 连接到现有浏览器
-    this.app.post('/api/browser/connect', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, port = 9222 } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        if (this.clients.has(sessionId)) {
-          res.status(400).json({ success: false, error: 'Session already exists' });
-          return;
-        }
-
-        const client = new CDPClient({ port, name: sessionId });
-        await client.connect();
-        
-        // 获取所有已存在的页面
-        const targets = await client.getPages();
-        const pages = new Map<string, BrowserPage>();
-        
-        // 包装已存在的页面
-        for (let i = 0; i < targets.length; i++) {
-          const target = targets[i];
-          const pageId = i === 0 ? 'default' : `page-${i}`;
-          const page = new BrowserPage(client);
-          pages.set(pageId, page);
-          logger.debug(`Wrapped existing page ${pageId} for target ${target.targetId}`);
-        }
-
-        this.clients.set(sessionId, {
-          sessionId,
-          chrome: null, // 连接到外部浏览器,不需要 chrome 实例
-          client,
-          pages,
-          isExternal: true
-        });
-
-        res.json({ success: true, data: { sessionId, port, pages: Array.from(pages.keys()) } });
-      } catch (error) {
-        logger.error('Failed to connect to browser:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
     // ========== 页面操作 ==========
-
-    // 创建新页面
-    this.app.post('/api/page/new', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        const id = pageId || `page-${Date.now()}`;
-        const page = new BrowserPage(session.client, { name: id });
-        
-        // 初始化页面
-        await page.init();
-        
-        session.pages.set(id, page);
-
-        res.json({ success: true, data: { pageId: id } });
-      } catch (error) {
-        logger.error('Failed to create new page:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // 关闭页面
-    this.app.post('/api/page/close', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        if (!pageId) {
-          res.status(400).json({ success: false, error: 'pageId is required' });
-          return;
-        }
-
-        const page = session.pages.get(pageId);
-        if (page) {
-          await page.close();
-          session.pages.delete(pageId);
-        }
-
-        res.json({ success: true });
-      } catch (error) {
-        logger.error('Failed to close page:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
 
     // 导航到 URL
     this.app.post('/api/page/navigate', async (req: Request, res: Response) => {
@@ -278,7 +149,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.navigate(url);
 
         res.json({ success: true });
@@ -307,7 +178,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.reload();
 
         res.json({ success: true });
@@ -336,7 +207,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const result = await page.evaluate(script);
 
         res.json({ success: true, result });
@@ -365,7 +236,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
+        const page = this.getPage(session);
         const title = await page.getTitle();
 
         res.json({ success: true, data: { title } });
@@ -394,7 +265,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
+        const page = this.getPage(session);
         const url = await page.getUrl();
 
         res.json({ success: true, data: { url } });
@@ -423,7 +294,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const screenshot = await page.screenshot(format);
 
         res.setHeader('Content-Type', `image/${format}`);
@@ -453,7 +324,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.navigateWithLoadedState(url);
 
         res.json({ success: true });
@@ -482,7 +353,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.reloadWithLoadedState();
 
         res.json({ success: true });
@@ -511,7 +382,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.waitForLoadStateLoad();
 
         res.json({ success: true });
@@ -540,7 +411,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.waitForDomContentLoaded();
 
         res.json({ success: true });
@@ -569,7 +440,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.waitForSelectorStateVisible(selector);
 
         res.json({ success: true });
@@ -600,7 +471,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const exists = await locator.exists();
 
@@ -630,7 +501,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const text = await locator.getText();
 
@@ -660,7 +531,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         await locator.click();
 
@@ -690,7 +561,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         await locator.hover();
 
@@ -720,7 +591,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         await locator.setValue(value);
 
@@ -750,7 +621,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         await page.waitForSelector(selector, { timeout });
 
@@ -780,7 +651,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const value = await locator.getAttribute(attribute);
 
@@ -818,7 +689,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const text = await page.expectResponseText(
           urlOrPredicate,
           async () => {
@@ -854,7 +725,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const text = await page.mustInnerText(selector);
 
         res.json({ success: true, data: { text } });
@@ -883,7 +754,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const text = await page.mustTextContent(selector);
 
         res.json({ success: true, data: { text } });
@@ -913,7 +784,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         page.release();
 
         res.json({ success: true });
@@ -942,48 +813,12 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         await page.closeAll();
 
         res.json({ success: true });
       } catch (error) {
         logger.error('Failed to close all:', error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    });
-
-    // 期望外部页面
-    this.app.post('/api/page/expect-ext-page', async (req: Request, res: Response) => {
-      try {
-        const { sessionId, callback, pageId } = req.body;
-
-        if (!sessionId) {
-          res.status(400).json({ success: false, error: 'sessionId is required' });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: 'Session not found' });
-          return;
-        }
-
-        const page = this.getPage(session, pageId);
-        const newPage = await page.expectExtPage(async () => {
-          if (callback) {
-            await page.evaluate(callback);
-          }
-        });
-        
-        const newPageId = `page-${Date.now()}`;
-        session.pages.set(newPageId, newPage);
-
-        res.json({ success: true, pageId: newPageId });
-      } catch (error) {
-        logger.error('Failed to expect ext page:', error);
         res.status(500).json({
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error'
@@ -1007,7 +842,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId as string);
+        const page = this.getPage(session);
         const html = await page.getHTML();
 
         res.json({ success: true, data: { html } });
@@ -1036,7 +871,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const texts = await locator.mustAllInnerTexts();
 
@@ -1066,7 +901,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const attributes = await locator.mustAllGetAttributes(attribute);
 
@@ -1096,7 +931,7 @@ export class BrowserHttpServer {
           return;
         }
 
-        const page = this.getPage(session, pageId);
+        const page = this.getPage(session);
         const locator = page.locator(selector);
         const count = await locator.getCount();
 
@@ -1125,14 +960,12 @@ export class BrowserHttpServer {
     });
   }
 
-  // 辅助方法：获取页面(支持 pageId 参数,默认使用 'default')
-  private getPage(session: BrowserSession, pageId?: string): BrowserPage {
-    const id = pageId || 'default';
-    const page = session.pages.get(id);
-    if (!page) {
-      throw new Error(`Page not found: ${id}`);
+  // 辅助方法：获取页面
+  private getPage(session: BrowserSession): BrowserPage {
+    if (!session.page) {
+      throw new Error('Page not found');
     }
-    return page;
+    return session.page;
   }
 
   async start(): Promise<void> {
@@ -1152,9 +985,9 @@ export class BrowserHttpServer {
     return new Promise((resolve, reject) => {
       // 关闭所有浏览器会话
       for (const session of this.clients.values()) {
-        // 关闭所有页面
-        for (const [pageId, page] of session.pages) {
-          page.close().catch((err: Error) => logger.error(`Error closing page ${pageId}:`, err));
+        // 关闭页面
+        if (session.page) {
+          session.page.close().catch((err: Error) => logger.error('Error closing page:', err));
         }
         
         session.client.close().catch((err: Error) => logger.error('Error closing client:', err));
