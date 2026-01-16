@@ -20,6 +20,7 @@ export class NetworkListener {
   private har: HAR;
   private config: NetworkListenerConfig;
   private responseReceivedCallbacks: Map<string, (body: string) => void>;
+  private initialized: boolean;
 
   constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
     this.client = client;
@@ -27,6 +28,7 @@ export class NetworkListener {
     this.requestIds = new Map();
     this.dumpMap = new Map();
     this.responseReceivedCallbacks = new Map();
+    this.initialized = false;
     this.har = {
       log: {
         version: '1.2',
@@ -41,6 +43,11 @@ export class NetworkListener {
   }
 
   async init(): Promise<void> {
+    if (this.initialized) {
+      logger.debug('NetworkListener already initialized');
+      return;
+    }
+
     const { Network } = this.client;
     
     Network.requestWillBeSent((event: Protocol.Network.RequestWillBeSentEvent) => {
@@ -58,6 +65,9 @@ export class NetworkListener {
     Network.loadingFailed((event: Protocol.Network.LoadingFailedEvent) => {
       this.handleLoadingFailed(event);
     });
+
+    this.initialized = true;
+    logger.debug('NetworkListener initialized');
   }
 
   private handleRequestWillBeSent(event: Protocol.Network.RequestWillBeSentEvent): void {
