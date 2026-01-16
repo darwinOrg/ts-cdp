@@ -99,6 +99,6 @@ export interface NetworkListenerConfig {
 }
 
 export interface RequestData {
-  pureUrl: string;
+  pattern: string;
   params: number;
 }

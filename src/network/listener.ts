@@ -19,7 +19,6 @@ export class NetworkListener {
   private dumpMap: Map<string, NetworkRequestInfo>;
   private har: HAR;
   private config: NetworkListenerConfig;
-  private responseReceivedCallbacks: Map<string, (body: string) => void>;
   private initialized: boolean;
 
   constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
@@ -27,7 +26,6 @@ export class NetworkListener {
     this.callbacks = new Map();
     this.requestIds = new Map();
     this.dumpMap = new Map();
-    this.responseReceivedCallbacks = new Map();
     this.initialized = false;
     this.har = {
       log: {
@@ -75,14 +73,19 @@ export class NetworkListener {
     const { url, method } = request;
     const pureUrl = getPureUrl(url);
 
-    // 检查是否是需要拦截的URL
-    const callback = this.callbacks.get(pureUrl);
-    if (typeof callback === 'function' && method !== 'OPTIONS') {
-      // 只为非OPTIONS请求设置拦截
-      this.requestIds.set(requestId, {
-        pureUrl,
-        params: callback.length
-      });
+    // 检查是否是需要拦截的URL（支持正则表达式）
+    for (const [pattern, callback] of this.callbacks) {
+      if (typeof callback === 'function' && method !== 'OPTIONS') {
+        // 检查是否匹配（支持正则表达式）
+        const regex = new RegExp(pattern);
+        if (regex.test(url)) {
+          this.requestIds.set(requestId, {
+            pattern,
+            params: callback.length
+          });
+          break;
+        }
+      }
     }
 
     // 只记录 XHR 请求用于监控（Fetch 请求通常是页面资源，不需要记录）
@@ -108,25 +111,6 @@ export class NetworkListener {
     }
 
     try {
-      // 检查是否有 responseReceived 回调
-      if (this.responseReceivedCallbacks.size > 0) {
-        for (const [pattern, callback] of this.responseReceivedCallbacks) {
-          const regex = new RegExp(pattern);
-          if (regex.test(response.url)) {
-            try {
-              const { Network } = this.client;
-              const res = await Network.getResponseBody({ requestId });
-              callback(res.body);
-              this.responseReceivedCallbacks.delete(pattern);
-              logger.debug(`[responseReceivedCallback] ← ${response.status} ${response.url}`);
-              break;
-            } catch (getBodyError) {
-              logger.debug(`Could not get response body for ${requestId} in responseReceived callback:`, getBodyError);
-            }
-          }
-        }
-      }
-
       // 处理 watchUrls
       if (this.config.watchUrls && this.config.watchUrls.length > 0) {
         const shouldWatch = this.config.watchUrls.some(watchUrl => response.url.includes(watchUrl));
@@ -173,7 +157,7 @@ export class NetworkListener {
     const { requestId } = event;
 
     if (this.requestIds.has(requestId)) {
-      const { pureUrl, params } = this.requestIds.get(requestId)!;
+      const { pattern, params } = this.requestIds.get(requestId)!;
       const { Network } = this.client;
 
       try {
@@ -200,7 +184,7 @@ export class NetworkListener {
           return;
         }
 
-        const callback = this.callbacks.get(pureUrl);
+        const callback = this.callbacks.get(pattern);
 
         if (typeof callback === 'function') {
           let parsedResponse = responseBody.body;
@@ -211,7 +195,7 @@ export class NetworkListener {
               parsedResponse = JSON.parse(responseBody.body);
             }
           } catch (parseError) {
-            logger.debug(`Could not parse response as JSON for ${pureUrl}, using raw response:`, parseError);
+            logger.debug(`Could not parse response as JSON for ${pattern}, using raw response:`, parseError);
             // 不中断处理，使用原始响应体
           }
 
@@ -220,7 +204,7 @@ export class NetworkListener {
 
         this.requestIds.delete(requestId);
       } catch (error: any) {
-        logger.error(`Loading finished error: ${error}`, { url: pureUrl });
+        logger.error(`Loading finished error: ${error}`, { url: pattern });
         // 确保即使出现错误也要删除requestId，避免内存泄漏
         this.requestIds.delete(requestId);
       }
@@ -261,22 +245,10 @@ export class NetworkListener {
 
   clearCallbacks(): void {
     this.callbacks.clear();
-    this.responseReceivedCallbacks.clear();
-  }
-
-  addResponseReceivedCallback(pattern: string, callback: (body: string) => void): void {
-    this.responseReceivedCallbacks.set(pattern, callback);
-    logger.debug(`Added responseReceived callback for: ${pattern}`);
-  }
-
-  removeResponseReceivedCallback(pattern: string): void {
-    this.responseReceivedCallbacks.delete(pattern);
-    logger.debug(`Removed responseReceived callback for: ${pattern}`);
   }
 
   clear(): void {
     this.callbacks.clear();
-    this.responseReceivedCallbacks.clear();
     this.requestIds.clear();
     this.dumpMap.clear();
   }

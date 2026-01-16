@@ -405,10 +405,10 @@ export class BrowserPage {
         }
       };
       
-      // 使用 NetworkListener 的回调机制
+      // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
       const networkListener = this.cdpClient.getNetworkListener();
       if (networkListener) {
-        networkListener.addResponseReceivedCallback(urlPattern, responseCallback);
+        networkListener.addCallback(urlPattern, responseCallback);
         logger.debug(`expectResponseText: added callback for pattern ${urlPattern}`);
       } else {
         reject(new Error('NetworkListener not initialized'));
@@ -428,7 +428,7 @@ export class BrowserPage {
               logger.warn(`expectResponseText: no response received within 10 seconds for ${urlOrPredicate}`);
               // 清理回调
               if (networkListener) {
-                networkListener.removeResponseReceivedCallback(urlPattern);
+                networkListener.removeCallback(urlPattern);
               }
               reject(new Error(`Timeout waiting for response: ${urlOrPredicate}`));
             }
@@ -438,7 +438,7 @@ export class BrowserPage {
           logger.error(`expectResponseText: callback failed: ${err}`);
           // 清理回调
           if (networkListener) {
-            networkListener.removeResponseReceivedCallback(urlPattern);
+            networkListener.removeCallback(urlPattern);
           }
           reject(err);
         });
