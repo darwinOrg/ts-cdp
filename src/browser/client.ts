@@ -18,6 +18,7 @@ export class CDPClient {
   private config: CDPClientConfig;
   private options: CDPClientOptions;
   private currentUrl: string;
+  private readyLogged: boolean = false;
 
   constructor(config: CDPClientConfig, options: Partial<CDPClientOptions> = {}) {
     this.config = config;
@@ -29,6 +30,7 @@ export class CDPClient {
     this.client = null;
     this.networkListener = null;
     this.currentUrl = '';
+    this.readyLogged = false;
   }
 
   async connect(): Promise<CDP.Client> {
@@ -48,10 +50,14 @@ export class CDPClient {
           this.config.disconnectCallback();
         }
         this.client?.close();
+        this.readyLogged = false;
       });
 
       this.client.on('ready', () => {
-        logger.info(`Client ready: ${this.config.name || 'unnamed'}`);
+        if (!this.readyLogged) {
+          logger.info(`Client ready: ${this.config.name || 'unnamed'}`);
+          this.readyLogged = true;
+        }
       });
 
       const { Page, DOM, Network, Overlay } = this.client;
