@@ -1104,10 +1104,18 @@ export class BrowserHttpServer {
   // 辅助方法：获取页面(支持 pageId 参数,默认使用 'default')
   private getPage(session: BrowserSession, pageId?: string): BrowserPage {
     const id = pageId || 'default';
-    const page = session.pages.get(id);
+    let page = session.pages.get(id);
+    
+    // 如果页面不存在，自动创建新页面
     if (!page) {
-      throw new Error(`Page not found: ${id}`);
+      logger.debug(`Page ${id} not found, creating new page`);
+      page = new BrowserPage(session.client, { name: id });
+      page.init().catch((err) => {
+        logger.error(`Failed to initialize page ${id}:`, err);
+      });
+      session.pages.set(id, page);
     }
+    
     return page;
   }
 
