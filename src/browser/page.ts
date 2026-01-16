@@ -67,27 +67,18 @@ export class BrowserPage {
 
     if (!this.page) throw new Error('Page not initialized');
 
-    // 确保 Page 领域已启用
-    try {
-      await this.page.enable();
-      logger.info(`Page.enable() called for ${this.options.name}`);
-    } catch (error) {
-      // 忽略错误，可能已经启用
-      logger.info(`Page.enable() failed (may already be enabled): ${error}`);
-    }
-
     logger.info(`Navigating to ${url} with waitUntil=${opts.waitUntil}`);
     await this.page.navigate({ url });
     logger.info(`Navigation to ${url} completed`);
 
+    // 简化等待逻辑，不使用频繁的 Runtime.evaluate
     if (opts.waitUntil === 'domcontentloaded') {
-      logger.info(`Waiting for DOMContentLoaded`);
-      await this.waitForDOMContentLoaded(opts.timeout);
-      logger.info(`DOMContentLoaded received`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
     } else if (opts.waitUntil === 'networkidle') {
-      await this.waitForNetworkIdle(opts.timeout);
+      await new Promise(resolve => setTimeout(resolve, 3000));
     } else {
-      await this.waitForLoadState('load', opts.timeout);
+      // 默认等待 3 秒
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
   }
 
