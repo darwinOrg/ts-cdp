@@ -41,9 +41,10 @@ export class BrowserLocator {
     }
 
     try {
-      const result = await this.page['executeScript'](
+      const result = await this.page.executeScript(
         `document.querySelector('${this.selector}').innerText`
       );
+      logger.debug(`locator[${this.selector}] getText result:`, result);
       return result ? result.trim() : '';
     } catch (error) {
       logger.error(`locator[${this.selector}] get text error:`, error);
