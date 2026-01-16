@@ -81,6 +81,17 @@ export class CDPClient {
     return this.client;
   }
 
+  async getPages(): Promise<any[]> {
+    if (!this.client) return [];
+    try {
+      const targets = await this.client.Target.getTargets();
+      return targets.targetInfos.filter((t: any) => t.type === 'page');
+    } catch (error) {
+      logger.error('Failed to get pages:', error);
+      return [];
+    }
+  }
+
   private async getCurrentUrl(): Promise<string> {
     if (!this.client) return '';
     try {
