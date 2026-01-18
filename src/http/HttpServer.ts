@@ -64,6 +64,51 @@ export class BrowserHttpServer {
     // 启动浏览器
     this.app.post("/api/browser/start", async (req: Request, res: Response) => {
       try {
+        const { sessionId, headless = false } = req.body;
+
+        if (!sessionId) {
+          res
+            .status(400)
+            .json({ success: false, error: "sessionId is required" });
+          return;
+        }
+
+        if (this.clients.has(sessionId)) {
+          res
+            .status(400)
+            .json({ success: false, error: "Session already exists" });
+          return;
+        }
+
+        const chrome = await launch({ headless });
+        const client = new CDPClient({ port: chrome.port, name: sessionId });
+        await client.connect();
+
+        // 创建 BrowserPage，使用默认的第一个 tab 页面
+        const page = new BrowserPage(client, { name: `${sessionId}-page` });
+        await page.init();
+
+        this.clients.set(sessionId, {
+          sessionId,
+          chrome,
+          client,
+          page,
+          isExternal: false,
+        });
+
+        res.json({ success: true, data: { sessionId } });
+      } catch (error) {
+        logger.error("Failed to start browser:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    // 连接到已存在的浏览器
+    this.app.post("/api/browser/connect", async (req: Request, res: Response) => {
+      try {
         const { sessionId, port = 9222 } = req.body;
 
         if (!sessionId) {
@@ -98,7 +143,7 @@ export class BrowserHttpServer {
 
         res.json({ success: true, data: { sessionId } });
       } catch (error) {
-        logger.error("Failed to start browser:", error);
+        logger.error("Failed to connect to browser:", error);
         res.status(500).json({
           success: false,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -106,7 +151,39 @@ export class BrowserHttpServer {
       }
     });
 
-    // 停止浏览器
+    // 断开连接
+    this.app.post("/api/browser/disconnect", async (req: Request, res: Response) => {
+      try {
+        const { sessionId } = req.body;
+
+        if (!sessionId) {
+          res
+            .status(400)
+            .json({ success: false, error: "sessionId is required" });
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({ success: false, error: "Session not found" });
+          return;
+        }
+
+        // 只关闭客户端连接，不杀掉浏览器进程
+        await session.client.close();
+        this.clients.delete(sessionId);
+
+        res.json({ success: true });
+      } catch (error) {
+        logger.error("Failed to disconnect:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    // 关闭浏览器
     this.app.post("/api/browser/stop", async (req: Request, res: Response) => {
       try {
         const { sessionId } = req.body;
@@ -124,9 +201,14 @@ export class BrowserHttpServer {
           return;
         }
 
+        // 关闭客户端连接
         await session.client.close();
-        // 只关闭客户端连接，不杀掉浏览器进程
-        // 因为用户是通过连接 9222 端口的浏览器来操作的
+
+        // 杀掉浏览器进程（仅对启动的浏览器有效）
+        if (session.chrome && !session.isExternal) {
+          session.chrome.kill();
+        }
+
         this.clients.delete(sessionId);
 
         res.json({ success: true });
