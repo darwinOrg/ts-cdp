@@ -839,9 +839,9 @@ export class BrowserHttpServer {
       },
     );
 
-    // 强制获取 inner text
+    // 获取内部文本
     this.app.post(
-      "/api/page/must-inner-text",
+      "/api/page/inner-text",
       async (req: Request, res: Response) => {
         try {
           const { sessionId, selector } = req.body;
@@ -865,7 +865,7 @@ export class BrowserHttpServer {
           }
 
           const page = this.getPage(session);
-          const text = await page.mustInnerText(selector);
+          const text = await page.innerText(selector);
 
           res.json({ success: true, data: { text } });
         } catch (error) {
@@ -878,9 +878,9 @@ export class BrowserHttpServer {
       },
     );
 
-    // 强制获取 text content
+    // 获取文本内容
     this.app.post(
-      "/api/page/must-text-content",
+      "/api/page/text-content",
       async (req: Request, res: Response) => {
         try {
           const { sessionId, selector } = req.body;
@@ -904,7 +904,7 @@ export class BrowserHttpServer {
           }
 
           const page = this.getPage(session);
-          const text = await page.mustTextContent(selector);
+          const text = await page.textContent(selector);
 
           res.json({ success: true, data: { text } });
         } catch (error) {
@@ -1011,7 +1011,7 @@ export class BrowserHttpServer {
 
           const page = this.getPage(session);
           const locator = page.locator(selector);
-          const texts = await locator.mustAllInnerTexts();
+          const texts = await locator.allInnerTexts();
 
           res.json({ success: true, data: { texts } });
         } catch (error) {
@@ -1051,7 +1051,7 @@ export class BrowserHttpServer {
 
           const page = this.getPage(session);
           const locator = page.locator(selector);
-          const attributes = await locator.mustAllGetAttributes(attribute);
+          const attributes = await locator.allGetAttributes(attribute);
 
           res.json({ success: true, data: { attributes } });
         } catch (error) {

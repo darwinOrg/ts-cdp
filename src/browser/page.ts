@@ -405,14 +405,14 @@ export class BrowserPage {
     });
   }
 
-  // MustInnerText - 获取内部文本（确保存在）
-  async mustInnerText(selector: string): Promise<string> {
+  // InnerText - 获取内部文本
+  async innerText(selector: string): Promise<string> {
     const locator = this.locator(selector);
     return locator.getText();
   }
 
-  // MustTextContent - 获取文本内容（确保存在）
-  async mustTextContent(selector: string): Promise<string> {
+  // TextContent - 获取文本内容
+  async textContent(selector: string): Promise<string> {
     const locator = this.locator(selector);
     return locator.getTextContent();
   }

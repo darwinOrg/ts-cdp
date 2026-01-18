@@ -284,8 +284,8 @@ export class BrowserLocator {
     return locators;
   }
 
-  // MustAllInnerTexts - 获取所有元素的内部文本
-  async mustAllInnerTexts(): Promise<string[]> {
+  // AllInnerTexts - 获取所有元素的内部文本
+  async allInnerTexts(): Promise<string[]> {
     const locators = await this.allLocators();
     const texts: string[] = [];
     for (const locator of locators) {
@@ -294,8 +294,8 @@ export class BrowserLocator {
     return texts;
   }
 
-  // MustAllTextContents - 获取所有元素的文本内容
-  async mustAllTextContents(): Promise<string[]> {
+  // AllTextContents - 获取所有元素的文本内容
+  async allTextContents(): Promise<string[]> {
     const locators = await this.allLocators();
     const texts: string[] = [];
     for (const locator of locators) {
@@ -304,23 +304,14 @@ export class BrowserLocator {
     return texts;
   }
 
-  // MustAllGetAttributes - 获取所有元素的属性
-  async mustAllGetAttributes(attr: string): Promise<string[]> {
+  // AllGetAttributes - 获取所有元素的属性
+  async allGetAttributes(attr: string): Promise<string[]> {
     const locators = await this.allLocators();
     const attributes: string[] = [];
     for (const locator of locators) {
       attributes.push(await locator.getAttribute(attr));
     }
     return attributes;
-  }
-
-  // MustClick - 强制点击（确保存在）
-  async mustClick(): Promise<void> {
-    if (!(await this.exists())) {
-      throw new Error(`Element not found: ${this.selector}`);
-    }
-
-    await this.click();
   }
 
   // GetSelectors - 获取选择器链
