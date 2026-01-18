@@ -540,12 +540,6 @@ export class BrowserPage {
     await this.waitForSelector(selector, { state: "visible" });
   }
 
-  // CloseAll - 关闭页面和浏览器
-  async closeAll(): Promise<void> {
-    await this.close();
-    await this.cdpClient.close();
-  }
-
   // ExpectExtPage - 等待新页面
   async expectExtPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return this.expectNewPage(callback);

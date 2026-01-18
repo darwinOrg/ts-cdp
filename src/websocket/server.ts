@@ -231,12 +231,8 @@ export class BrowserWebSocketServer {
         await this.mustTextContent(sessionId, message);
         break;
 
-      case "release":
-        await this.release(sessionId, message);
-        break;
-
       case "close_all":
-        await this.closeAll(sessionId, message);
+        await this.close(sessionId, message);
         break;
 
       case "expect_ext_page":
@@ -1474,7 +1470,7 @@ export class BrowserWebSocketServer {
     }
   }
 
-  private async closeAll(sessionId: string, message: any): Promise<void> {
+  private async close(sessionId: string, message: any): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
@@ -1491,7 +1487,7 @@ export class BrowserWebSocketServer {
     }
 
     try {
-      await page.closeAll();
+      await page.close();
 
       this.sendResponse(session.ws, {
         type: "all_closed",

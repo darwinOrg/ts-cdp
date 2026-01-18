@@ -917,9 +917,9 @@ export class BrowserHttpServer {
       },
     );
 
-    // 关闭所有页面
+    // 关闭页面
     this.app.post(
-      "/api/page/close-all",
+      "/api/page/close",
       async (req: Request, res: Response) => {
         try {
           const { sessionId } = req.body;
@@ -940,7 +940,7 @@ export class BrowserHttpServer {
           }
 
           const page = this.getPage(session);
-          await page.closeAll();
+          await page.close();
 
           res.json({ success: true });
         } catch (error) {
