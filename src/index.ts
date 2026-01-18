@@ -1,5 +1,4 @@
 export { CDPClient } from "./browser/client";
-export { BrowserContext } from "./browser/context";
 export { BrowserPage, BrowserLocator } from "./browser/page";
 export { NetworkListener } from "./network/listener";
 export {
