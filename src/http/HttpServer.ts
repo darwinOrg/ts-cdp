@@ -1051,7 +1051,7 @@ export class BrowserHttpServer {
 
           const page = this.getPage(session);
           const locator = page.locator(selector);
-          const attributes = await locator.allGetAttributes(attribute);
+          const attributes = await locator.allAttributes(attribute);
 
           res.json({ success: true, data: { attributes } });
         } catch (error) {

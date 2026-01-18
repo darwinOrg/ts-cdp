@@ -304,8 +304,8 @@ export class BrowserLocator {
     return texts;
   }
 
-  // AllGetAttributes - 获取所有元素的属性
-  async allGetAttributes(attr: string): Promise<string[]> {
+  // AllAttributes - 获取所有元素的属性
+  async allAttributes(attr: string): Promise<string[]> {
     const locators = await this.allLocators();
     const attributes: string[] = [];
     for (const locator of locators) {
