@@ -10,7 +10,7 @@ export interface LocatorOptions {
 export class BrowserLocator {
   private page: BrowserPage;
   private selector: string;
-  private selectorChain: string[]; // 添加选择器链
+  private selectorChain: string[];
   private options: LocatorOptions;
 
   constructor(

@@ -791,8 +791,6 @@ export class BrowserHttpServer {
       res.json({ success: true, sessions });
     });
 
-    // ========== 新增的 Playwright 常用功能 ==========
-
     // 期望响应文本
     this.app.post(
       "/api/page/expect-response-text",
