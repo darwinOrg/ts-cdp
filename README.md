@@ -24,6 +24,7 @@
 - 获取元素文本
 - 获取元素属性
 - 点击元素
+- 鼠标悬停
 - 设置元素值
 - 检查元素可见性
 - 获取所有匹配元素
@@ -48,17 +49,6 @@ Content-Type: application/json
 {
   "sessionId": "session-123",
   "headless": false
-}
-```
-
-#### 连接到现有浏览器
-```bash
-POST /api/browser/connect
-Content-Type: application/json
-
-{
-  "sessionId": "session-123",
-  "port": 9222
 }
 ```
 
@@ -479,7 +469,6 @@ curl -X POST http://localhost:3000/api/element/setValue \
 
 1. **会话管理**: 每个浏览器实例都有一个唯一的 `sessionId`，所有操作都需要提供 `sessionId`
 2. **单页面模式**: 当前版本为单页面模式，每个会话只有一个默认页面
-3. **外部浏览器连接**: 可以通过 `/api/browser/connect` 连接到现有的浏览器实例，而不是启动新浏览器
-4. **资源清理**: 使用完毕后记得调用 `/api/browser/stop` 关闭浏览器
-5. **超时处理**: 大多数操作都有默认超时时间（10秒），可以通过参数自定义
-6. **错误处理**: 所有错误都会返回 JSON 格式的错误信息
+3. **资源清理**: 使用完毕后记得调用 `/api/browser/stop` 关闭浏览器
+4. **超时处理**: 大多数操作都有默认超时时间（10秒），可以通过参数自定义
+5. **错误处理**: 所有错误都会返回 JSON 格式的错误信息
