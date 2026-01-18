@@ -405,24 +405,6 @@ export class BrowserPage {
     });
   }
 
-  // ReNewPageByError - 错误时恢复页面
-  async renewPageByError(error: any): Promise<void> {
-    const errorMessage = error?.message || "";
-    if (
-      errorMessage.includes("target closed") ||
-      errorMessage.includes("Session closed")
-    ) {
-      console.warn("Page closed, renewing...");
-      await this.close();
-
-      // 等待并重试
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // 重新初始化页面 - 注意：这需要重新连接到 CDP
-      logger.warn("Page recovery not fully implemented");
-    }
-  }
-
   // MustInnerText - 获取内部文本（确保存在）
   async mustInnerText(selector: string): Promise<string> {
     const locator = this.locator(selector);
@@ -443,7 +425,6 @@ export class BrowserPage {
       await this.waitForLoadState("load");
     } catch (error) {
       logger.error("NavigateWithLoadedState error:", error);
-      await this.renewPageByError(error);
       throw error;
     }
   }
@@ -456,7 +437,6 @@ export class BrowserPage {
       await this.waitForLoadState("load");
     } catch (error) {
       logger.error("ReloadWithLoadedState error:", error);
-      await this.renewPageByError(error);
       throw error;
     }
   }
@@ -476,9 +456,5 @@ export class BrowserPage {
     await this.waitForSelector(selector, { state: "visible" });
   }
 
-  // ExpectExtPage - 等待新页面
-  async expectExtPage(callback: () => Promise<void>): Promise<BrowserPage> {
-    return this.expectNewPage(callback);
-  }
 }
 export { BrowserLocator } from "./locator";
