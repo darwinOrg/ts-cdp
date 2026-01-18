@@ -64,7 +64,7 @@ export class BrowserHttpServer {
     // 启动浏览器
     this.app.post("/api/browser/start", async (req: Request, res: Response) => {
       try {
-        const { sessionId, headless = false } = req.body;
+        const { sessionId, port = 9222 } = req.body;
 
         if (!sessionId) {
           res
@@ -80,8 +80,8 @@ export class BrowserHttpServer {
           return;
         }
 
-        const chrome = await launch({ headless });
-        const client = new CDPClient({ port: chrome.port, name: sessionId });
+        // 连接到已存在的浏览器（通过调试端口）
+        const client = new CDPClient({ port, name: sessionId });
         await client.connect();
 
         // 创建 BrowserPage，使用默认的第一个 tab 页面
@@ -90,10 +90,10 @@ export class BrowserHttpServer {
 
         this.clients.set(sessionId, {
           sessionId,
-          chrome,
+          chrome: null, // 连接到外部浏览器，不需要 chrome 实例
           client,
           page,
-          isExternal: false,
+          isExternal: true,
         });
 
         res.json({ success: true, data: { sessionId } });
