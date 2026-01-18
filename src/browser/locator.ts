@@ -207,10 +207,6 @@ export class BrowserLocator {
     }
   }
 
-  async isHidden(): Promise<boolean> {
-    return !(await this.isVisible());
-  }
-
   async hasClass(className: string): Promise<boolean> {
     if (!(await this.exists())) {
       return false;
@@ -267,20 +263,8 @@ export class BrowserLocator {
     }
   }
 
-  // ========== Go Playwright 对应的功能 ==========
-
-  // ExtLocator - 嵌套定位器
-  extLocator(selector: string): BrowserLocator {
-    return new BrowserLocator(
-      this.page,
-      `${this.selector} ${selector}`,
-      this.options,
-      this.selectorChain, // 传递选择器链
-    );
-  }
-
-  // ExtAll - 获取所有匹配的元素
-  async extAll(): Promise<BrowserLocator[]> {
+  // AllLocators - 获取所有匹配的元素
+  async allLocators(): Promise<BrowserLocator[]> {
     const count = await this.getCount();
     if (count === 0) return [];
 
@@ -302,7 +286,7 @@ export class BrowserLocator {
 
   // MustAllInnerTexts - 获取所有元素的内部文本
   async mustAllInnerTexts(): Promise<string[]> {
-    const locators = await this.extAll();
+    const locators = await this.allLocators();
     const texts: string[] = [];
     for (const locator of locators) {
       texts.push(await locator.getText());
@@ -312,7 +296,7 @@ export class BrowserLocator {
 
   // MustAllTextContents - 获取所有元素的文本内容
   async mustAllTextContents(): Promise<string[]> {
-    const locators = await this.extAll();
+    const locators = await this.allLocators();
     const texts: string[] = [];
     for (const locator of locators) {
       texts.push(await locator.getTextContent());
@@ -322,7 +306,7 @@ export class BrowserLocator {
 
   // MustAllGetAttributes - 获取所有元素的属性
   async mustAllGetAttributes(attr: string): Promise<string[]> {
-    const locators = await this.extAll();
+    const locators = await this.allLocators();
     const attributes: string[] = [];
     for (const locator of locators) {
       attributes.push(await locator.getAttribute(attr));
