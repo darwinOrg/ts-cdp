@@ -917,38 +917,6 @@ export class BrowserHttpServer {
       },
     );
 
-    // 暂停
-    // 释放
-    this.app.post("/api/page/release", async (req: Request, res: Response) => {
-      try {
-        const { sessionId } = req.body;
-
-        if (!sessionId) {
-          res
-            .status(400)
-            .json({ success: false, error: "sessionId is required" });
-          return;
-        }
-
-        const session = this.clients.get(sessionId);
-        if (!session) {
-          res.status(404).json({ success: false, error: "Session not found" });
-          return;
-        }
-
-        const page = this.getPage(session);
-        page.release();
-
-        res.json({ success: true });
-      } catch (error) {
-        logger.error("Failed to release:", error);
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    });
-
     // 关闭所有页面
     this.app.post(
       "/api/page/close-all",
