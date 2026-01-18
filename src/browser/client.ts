@@ -263,17 +263,6 @@ export class CDPClient {
     return result.data;
   }
 
-  async getPages(): Promise<any[]> {
-    if (!this.client) return [];
-    try {
-      const targets = await this.client.Target.getTargets();
-      return targets.targetInfos.filter((t: any) => t.type === "page");
-    } catch (error) {
-      logger.error("Failed to get pages:", error);
-      return [];
-    }
-  }
-
   async close(): Promise<void> {
     if (this.client) {
       this.networkListener?.clearCallbacks();
@@ -287,7 +276,4 @@ export class CDPClient {
     }
   }
 
-  isConnected(): boolean {
-    return this.client !== null;
-  }
 }

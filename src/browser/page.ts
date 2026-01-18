@@ -205,38 +205,6 @@ export class BrowserPage {
     });
   }
 
-  async waitForNetworkIdle(timeout?: number): Promise<void> {
-    const timeoutMs = timeout || this.options.timeout || 10000;
-    const startTime = Date.now();
-
-    return new Promise((resolve, reject) => {
-      let lastNetworkActivity = Date.now();
-      let networkListener: any;
-
-      const checkIdle = () => {
-        if (Date.now() - lastNetworkActivity > 500) {
-          if (networkListener) {
-            this.client?.Network?.removeAllListeners();
-          }
-          resolve();
-        } else if (Date.now() - startTime > timeoutMs) {
-          if (networkListener) {
-            this.client?.Network?.removeAllListeners();
-          }
-          reject(new Error("Timeout waiting for network idle"));
-        } else {
-          setTimeout(checkIdle, 100);
-        }
-      };
-
-      networkListener = this.client?.Network?.requestWillBeSent(() => {
-        lastNetworkActivity = Date.now();
-      });
-
-      checkIdle();
-    });
-  }
-
   async executeScript(script: string): Promise<any> {
     if (!this.runtime) throw new Error("Runtime not initialized");
 
@@ -317,9 +285,7 @@ export class BrowserPage {
     await this.cdpClient.close();
   }
 
-  // ========== Go Playwright 对应的功能 ==========
-
-  // ExpectExtPage - 等待新页面打开
+  // expectNewPage - 等待新页面打开
   async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return new Promise((resolve, reject) => {
       let listenerActive = true;
