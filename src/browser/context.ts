@@ -69,25 +69,6 @@ export class BrowserContext {
   }
 
   /**
-   * 获取或创建新页面（复用未锁定的页面）
-   */
-  async getOrNewPage(options: PageOptions = {}): Promise<BrowserPage> {
-    // 清理已关闭的页面
-    this.pages = this.pages.filter((page) => !page.isClosed());
-
-    // 查找未锁定的页面
-    for (const page of this.pages) {
-      if (!page.isLocked()) {
-        page.lock();
-        return page;
-      }
-    }
-
-    // 没有可用的页面，创建新页面
-    return this.newPage(options);
-  }
-
-  /**
    * 创建新页面
    */
   async newPage(options: PageOptions = {}): Promise<BrowserPage> {
@@ -151,7 +132,7 @@ export class BrowserContext {
    * 获取所有页面
    */
   getPages(): BrowserPage[] {
-    return this.pages.filter((page) => !page.isClosed());
+    return this.pages;
   }
 
   /**
