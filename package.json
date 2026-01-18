@@ -10,8 +10,7 @@
     "example": "ts-node examples/basic-usage.ts",
     "lint": "eslint src/**/*.ts",
     "clean": "rm -rf dist",
-    "server": "ts-node src/http/index.ts",
-    "ws-server": "ts-node src/websocket/index.ts"
+    "server": "ts-node src/http/index.ts"
   },
   "keywords": [
     "chrome",
@@ -24,14 +23,12 @@
   "license": "MIT",
   "dependencies": {
     "chrome-remote-interface": "^0.33.3",
-    "express": "^5.2.1",
-    "ws": "^8.19.0"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "@types/chrome-remote-interface": "^0.33.0",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.7",
-    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.53.0",
     "@typescript-eslint/parser": "^8.53.0",
     "eslint": "^9.39.2",

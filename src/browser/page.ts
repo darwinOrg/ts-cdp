@@ -336,7 +336,6 @@ export class BrowserPage {
   // ExpectExtPage - 等待新页面打开
   async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
     return new Promise((resolve, reject) => {
-      const targetUrlPattern = "**";
       let listenerActive = true;
 
       // 监听新页面
@@ -470,21 +469,6 @@ export class BrowserPage {
       // 重新初始化页面 - 注意：这需要重新连接到 CDP
       logger.warn("Page recovery not fully implemented");
     }
-  }
-
-  // GetOrNewExtPage - 获取或新建页面
-  async getOrNewPage(): Promise<BrowserPage> {
-    return this;
-  }
-
-  // Release - 释放页面锁定
-  release(): void {
-    this.locked = false;
-  }
-
-  // ExtContext - 获取浏览器上下文
-  get extContext(): any {
-    return this.cdpClient;
   }
 
   // MustInnerText - 获取内部文本（确保存在）
