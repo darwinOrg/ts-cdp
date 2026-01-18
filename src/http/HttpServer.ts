@@ -125,9 +125,8 @@ export class BrowserHttpServer {
         }
 
         await session.client.close();
-        if (session.chrome) {
-          session.chrome.kill();
-        }
+        // 只关闭客户端连接，不杀掉浏览器进程
+        // 因为用户是通过连接 9222 端口的浏览器来操作的
         this.clients.delete(sessionId);
 
         res.json({ success: true });
