@@ -126,7 +126,7 @@ export class BrowserHttpServer {
 
         await session.client.close();
         if (session.chrome) {
-          await session.chrome.close();
+          session.chrome.kill();
         }
         this.clients.delete(sessionId);
 
