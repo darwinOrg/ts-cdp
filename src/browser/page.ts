@@ -22,7 +22,6 @@ export class BrowserPage {
   private dom: any;
   private network: any;
   private options: PageOptions;
-  private locked: boolean;
   private pendingPages: BrowserPage[];
   private initialized: boolean;
 
@@ -37,7 +36,6 @@ export class BrowserPage {
       timeout: 10000,
       ...options,
     };
-    this.locked = false;
     this.pendingPages = [];
     this.initialized = false;
   }
@@ -313,18 +311,6 @@ export class BrowserPage {
       expression: "window.location.href",
     });
     return result?.result?.value || "";
-  }
-
-  lock(): void {
-    this.locked = true;
-  }
-
-  unlock(): void {
-    this.locked = false;
-  }
-
-  isLocked(): boolean {
-    return this.locked;
   }
 
   async close(): Promise<void> {
