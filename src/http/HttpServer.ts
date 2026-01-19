@@ -877,7 +877,7 @@ export class BrowserHttpServer {
       "/api/page/expect-response-text",
       async (req: Request, res: Response) => {
         try {
-          const { sessionId, urlOrPredicate, callback } = req.body;
+          const { sessionId, urlOrPredicate, callback, timeout = 30000 } = req.body;
 
           if (!sessionId || !urlOrPredicate) {
             res

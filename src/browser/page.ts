@@ -323,6 +323,7 @@ export class BrowserPage {
   async expectResponseText(
     urlOrPredicate: string,
     callback: () => Promise<void>,
+    timeout: number = 30000,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       // 支持 Playwright 风格的 URL 匹配规则
@@ -446,11 +447,11 @@ export class BrowserPage {
             `expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`,
           );
 
-          // 设置超时检查
+          // 设置超时检查（最多等待 timeout 毫秒，如果有结果马上返回）
           setTimeout(() => {
             if (listenerActive && !listenerCalled) {
               logger.warn(
-                `expectResponseText: no response received within 30 seconds for ${urlOrPredicate}`,
+                `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
               );
               // 清理回调
               if (networkListener) {
@@ -460,7 +461,7 @@ export class BrowserPage {
                 new Error(`Timeout waiting for response: ${urlOrPredicate}`),
               );
             }
-          }, 30000); // 增加到 30 秒
+          }, timeout);
         })
         .catch((err: any) => {
           logger.error(`expectResponseText: callback failed: ${err}`);
