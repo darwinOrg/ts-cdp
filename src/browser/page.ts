@@ -1,5 +1,9 @@
 import type { CDPClient } from "./client";
 import { createLogger } from "../utils/logger";
+import {
+  getBeijingTimeISOString,
+  toBeijingTimeISOString,
+} from "../utils/url";
 import { BrowserLocator } from "./locator";
 
 const logger = createLogger("BrowserPage");
@@ -376,7 +380,7 @@ export class BrowserPage {
 
         if (body) {
           logger.debug(
-            `expectResponseText: matched ${urlOrPredicate} at ${new Date().toISOString()}, body length: ${body.length}`,
+            `expectResponseText: matched ${urlOrPredicate} at ${getBeijingTimeISOString()}, body length: ${body.length}`,
           );
           resolve(body);
         } else {
@@ -413,7 +417,7 @@ export class BrowserPage {
               // 使用最新的缓存请求
               const latestRequest = cachedRequests[cachedRequests.length - 1];
               logger.debug(
-                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
+                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toBeijingTimeISOString(latestRequest.timestamp)}`,
               );
 
               // 将响应转换为字符串
@@ -455,7 +459,7 @@ export class BrowserPage {
           // 回调完成后，激活监听器
           listenerActive = true;
           logger.debug(
-            `expectResponseText: callback completed, listener activated at ${new Date().toISOString()}`,
+            `expectResponseText: callback completed, listener activated at ${getBeijingTimeISOString()}`,
           );
 
           // 设置超时检查（最多等待 timeout 毫秒，如果有结果马上返回）

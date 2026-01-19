@@ -1,5 +1,6 @@
 import { CDPClient } from "../browser/client";
 import { createLogger } from "./logger";
+import { getBeijingTimeISOString } from "./url";
 
 const logger = createLogger("ApiInterceptor");
 
@@ -72,7 +73,7 @@ export async function interceptApiData(
 
       // 只保存最新的数据
       latestData = {
-        timestamp: new Date().toISOString(),
+        timestamp: getBeijingTimeISOString(),
         attemptCount,
         request,
         response,
@@ -127,7 +128,7 @@ export async function interceptApiData(
         success: false,
         error: `未拦截到数据 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
         metadata: {
-          timestamp: new Date().toISOString(),
+          timestamp: getBeijingTimeISOString(),
           attemptCount,
           requestUrl: apiUrl,
         },
@@ -164,7 +165,7 @@ export async function interceptApiData(
       success: false,
       error: errorMessage,
       metadata: {
-        timestamp: new Date().toISOString(),
+        timestamp: getBeijingTimeISOString(),
         attemptCount,
         requestUrl: apiUrl,
       },
