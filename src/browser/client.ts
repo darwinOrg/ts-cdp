@@ -265,6 +265,11 @@ export class CDPClient {
 
   async close(): Promise<void> {
     if (this.client) {
+        // 禁用网络监听器（如果开启了的话）
+        if (this.networkListener && this.networkListener.isEnabled()) {
+            this.networkListener.disable();
+            logger.debug("[CDPClient] NetworkListener disabled on close");
+        }
       this.networkListener?.clearCallbacks();
       if (this.loginStateChangeTimeout) {
         clearTimeout(this.loginStateChangeTimeout);

@@ -22,9 +22,10 @@ export class NetworkListener {
   private config: NetworkListenerConfig;
   private initialized: boolean;
   private enabled: boolean; // 控制监听器是否启用
-  private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果
+    private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
   private maxCacheSize: number; // 最大缓存条数
   private lastTimestamps: Map<string, number>; // 记录每个 pattern 的最后时间戳
+    private watchedPatterns: string[]; // 要监听的 urlPattern 列表
 
   constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
     this.client = client;
@@ -32,10 +33,11 @@ export class NetworkListener {
     this.requestIds = new Map();
     this.dumpMap = new Map();
     this.initialized = false;
-    this.enabled = true; // 默认启用
+      this.enabled = false; // 默认禁用
     this.requestCache = new Map();
     this.maxCacheSize = config.maxCacheSize || 100; // 默认缓存 100 条
     this.lastTimestamps = new Map();
+      this.watchedPatterns = []; // 默认不监听任何 pattern
     this.har = {
       log: {
         version: "1.2",
@@ -269,21 +271,32 @@ export class NetworkListener {
         );
       }
 
-      // 缓存所有 XHR 请求（按 URL 存储，每个 URL 只保留最新的一条）
-      if (req.url) {
-        // 直接覆盖旧数据，只保留最新的请求
-        this.requestCache.set(req.url, [
-          {
-            url: req.url,
-            timestamp: Date.now(),
-            response: parsedResponse,
-            request: requestBody,
-          },
-        ]);
+        // 缓存所有 XHR 请求（按 urlPattern 存储，每个 pattern 只保留最新的一条）
+        if (req.url && this.watchedPatterns.length > 0) {
+            // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
+            for (const pattern of this.watchedPatterns) {
+                try {
+                    const regex = new RegExp(pattern);
+                    if (regex.test(req.url)) {
+                        // 匹配成功，使用 pattern 作为缓存键
+                        this.requestCache.set(pattern, [
+                            {
+                                url: req.url,
+                                timestamp: Date.now(),
+                                response: parsedResponse,
+                                request: requestBody,
+                            },
+                        ]);
 
-        logger.debug(
-          `[NetworkListener] Cached XHR response for ${req.url}, timestamp: ${toBeijingTimeISOString(Date.now())}`,
-        );
+                        logger.debug(
+                            `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toBeijingTimeISOString(Date.now())}`,
+                        );
+                        break; // 只使用第一个匹配的 pattern
+                    }
+                } catch (error) {
+                    logger.debug(`[NetworkListener] Invalid pattern: ${pattern}`, error);
+                }
+            }
       }
 
       // 如果有匹配的 callback，调用 callback
@@ -374,10 +387,11 @@ export class NetworkListener {
     return stats;
   }
 
-  // 启用网络监听
-  enable(): void {
+    // 启用网络监听，可以指定多个 urlPattern
+    enable(urlPatterns: string[] = []): void {
     this.enabled = true;
-    logger.debug("[NetworkListener] NetworkListener enabled");
+        this.watchedPatterns = urlPatterns;
+        logger.debug(`[NetworkListener] NetworkListener enabled with patterns: ${urlPatterns.join(", ")}`);
   }
 
   // 禁用网络监听

@@ -221,6 +221,158 @@ export class BrowserHttpServer {
       }
     });
 
+    // ========== 网络监听器 ==========
+
+    // 启用网络监听
+    this.app.post("/api/network/enable", async (req: Request, res: Response) => {
+      try {
+        const {sessionId, urlPatterns = []} = req.body;
+
+        if (!sessionId) {
+          res
+              .status(400)
+              .json({success: false, error: "sessionId is required"});
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({success: false, error: "Session not found"});
+          return;
+        }
+
+        const networkListener = session.client.getNetworkListener();
+        if (networkListener) {
+          networkListener.enable(urlPatterns);
+          res.json({success: true, data: {urlPatterns}});
+        } else {
+          res
+              .status(404)
+              .json({success: false, error: "NetworkListener not found"});
+        }
+      } catch (error) {
+        logger.error("Failed to enable network listener:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    // 禁用网络监听
+    this.app.post("/api/network/disable", async (req: Request, res: Response) => {
+      try {
+        const {sessionId} = req.body;
+
+        if (!sessionId) {
+          res
+              .status(400)
+              .json({success: false, error: "sessionId is required"});
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({success: false, error: "Session not found"});
+          return;
+        }
+
+        const networkListener = session.client.getNetworkListener();
+        if (networkListener) {
+          networkListener.disable();
+          res.json({success: true});
+        } else {
+          res
+              .status(404)
+              .json({success: false, error: "NetworkListener not found"});
+        }
+      } catch (error) {
+        logger.error("Failed to disable network listener:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    // 获取网络监听器状态
+    this.app.get("/api/network/status", async (req: Request, res: Response) => {
+      try {
+        const {sessionId} = req.query;
+
+        if (!sessionId || typeof sessionId !== 'string') {
+          res
+              .status(400)
+              .json({success: false, error: "sessionId is required"});
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({success: false, error: "Session not found"});
+          return;
+        }
+
+        const networkListener = session.client.getNetworkListener();
+        if (networkListener) {
+          const cacheStats = networkListener.getCacheStats();
+          res.json({
+            success: true,
+            data: {
+              enabled: networkListener.isEnabled(),
+              cacheStats: Object.fromEntries(cacheStats),
+            },
+          });
+        } else {
+          res
+              .status(404)
+              .json({success: false, error: "NetworkListener not found"});
+        }
+      } catch (error) {
+        logger.error("Failed to get network listener status:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
+    // 清除网络监听器缓存
+    this.app.post("/api/network/clear-cache", async (req: Request, res: Response) => {
+      try {
+        const {sessionId, pattern} = req.body;
+
+        if (!sessionId) {
+          res
+              .status(400)
+              .json({success: false, error: "sessionId is required"});
+          return;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+          res.status(404).json({success: false, error: "Session not found"});
+          return;
+        }
+
+        const networkListener = session.client.getNetworkListener();
+        if (networkListener) {
+          networkListener.clearCache(pattern);
+          res.json({success: true});
+        } else {
+          res
+              .status(404)
+              .json({success: false, error: "NetworkListener not found"});
+        }
+      } catch (error) {
+        logger.error("Failed to clear network cache:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    });
+
     // ========== 页面操作 ==========
 
     // 导航到 URL
