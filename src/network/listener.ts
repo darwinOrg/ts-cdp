@@ -84,11 +84,18 @@ export class NetworkListener {
       if (typeof callback === "function" && method !== "OPTIONS") {
         // 检查是否匹配（支持正则表达式）
         const regex = new RegExp(pattern);
-        if (regex.test(url)) {
+        const isMatch = regex.test(url);
+        logger.debug(
+          `[NetworkListener] Checking URL ${url} against pattern ${pattern}: ${isMatch}`,
+        );
+        if (isMatch) {
           this.requestIds.set(requestId, {
             pattern,
             params: callback.length,
           });
+          logger.debug(
+            `[NetworkListener] Match found! Added requestId ${requestId} for pattern ${pattern}`,
+          );
           break;
         }
       }
