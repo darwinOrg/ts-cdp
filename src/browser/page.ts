@@ -334,7 +334,7 @@ export class BrowserPage {
         `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
       );
 
-      const responseCallback = (body: string) => {
+      const responseCallback = (response: any, request?: string) => {
         listenerCalled = true;
         logger.debug(
           `expectResponseText: response callback triggered for ${urlOrPredicate}`,
@@ -345,6 +345,16 @@ export class BrowserPage {
         }
 
         listenerActive = false;
+
+        // 将响应转换为字符串
+        let body: string;
+        if (typeof response === "string") {
+          body = response;
+        } else if (typeof response === "object") {
+          body = JSON.stringify(response);
+        } else {
+          body = String(response);
+        }
 
         if (body) {
           logger.debug(
