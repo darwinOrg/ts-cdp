@@ -88,18 +88,13 @@ export class NetworkListener {
     const pureUrl = getPureUrl(url);
 
     // 检查是否是需要拦截的URL（支持正则表达式）
-    // 只检查 XHR 请求，不检查其他类型的请求
-    if (type !== "XHR") {
-      return;
-    }
-
     for (const [pattern, callback] of this.callbacks) {
       if (typeof callback === "function" && method !== "OPTIONS") {
         // 检查是否匹配（支持正则表达式）
         const regex = new RegExp(pattern);
         const isMatch = regex.test(url);
         logger.debug(
-          `[NetworkListener] Checking XHR URL ${url} against pattern ${pattern}: ${isMatch}`,
+          `[NetworkListener] Checking URL ${url} against pattern ${pattern}: ${isMatch}`,
         );
         if (isMatch) {
           // 检查时间戳：请求时间必须大于上次记录的时间戳
@@ -205,6 +200,7 @@ export class NetworkListener {
   ): Promise<void> {
     const { requestId } = event;
 
+    // 如果有匹配的 callback，调用 callback
     if (this.requestIds.has(requestId)) {
       const { pattern, params } = this.requestIds.get(requestId)!;
       const { Network } = this.client;
@@ -241,56 +237,51 @@ export class NetworkListener {
           return;
         }
 
-        const callback = this.callbacks.get(pattern);
-
-        if (typeof callback === "function") {
-          let parsedResponse = responseBody.body;
-
-          // 尝试解析JSON，如果失败则使用原始字符串
-          try {
-            if (responseBody.body && responseBody.body.trim()) {
-              parsedResponse = JSON.parse(responseBody.body);
-            }
-          } catch (parseError) {
-            logger.debug(
-              `Could not parse response as JSON for ${pattern}, using raw response:`,
-              parseError,
-            );
-            // 不中断处理，使用原始响应体
+        // 解析响应
+        let parsedResponse = responseBody.body;
+        try {
+          if (responseBody.body && responseBody.body.trim()) {
+            parsedResponse = JSON.parse(responseBody.body);
           }
-
-          // 调用回调
-          callback(parsedResponse, requestBody);
-
-          // 缓存请求结果
-          const req = this.dumpMap.get(requestId);
-          const cachedRequests = this.requestCache.get(pattern) || [];
-          cachedRequests.push({
-            url: req?.url || "",
-            timestamp: Date.now(),
-            response: parsedResponse,
-            request: requestBody,
-          });
-
-          // 限制缓存大小（LIFO：移除最旧的）
-          if (cachedRequests.length > this.maxCacheSize) {
-            cachedRequests.shift();
-            logger.debug(
-              `[NetworkListener] Cache size exceeded for pattern ${pattern}, removed oldest entry`,
-            );
-          }
-
-          this.requestCache.set(pattern, cachedRequests);
-
-          // 更新最后时间戳
-          this.lastTimestamps.set(pattern, Date.now());
-
+        } catch (parseError) {
           logger.debug(
-            `[NetworkListener] Cached response for ${pattern}, cache size: ${cachedRequests.length}`,
+            `Could not parse response as JSON for ${pattern}, using raw response:`,
+            parseError,
           );
         }
 
-        this.requestIds.delete(requestId);
+        // 如果有匹配的 callback，调用 callback
+        const callback = this.callbacks.get(pattern);
+        if (typeof callback === "function") {
+          callback(parsedResponse, requestBody);
+        }
+
+        // 缓存请求结果（所有 XHR 请求都会被缓存）
+        const req = this.dumpMap.get(requestId);
+        const cachedRequests = this.requestCache.get(pattern) || [];
+        cachedRequests.push({
+          url: req?.url || "",
+          timestamp: Date.now(),
+          response: parsedResponse,
+          request: requestBody,
+        });
+
+        // 限制缓存大小（LIFO：移除最旧的）
+        if (cachedRequests.length > this.maxCacheSize) {
+          cachedRequests.shift();
+          logger.debug(
+            `[NetworkListener] Cache size exceeded for pattern ${pattern}, removed oldest entry`,
+          );
+        }
+
+        this.requestCache.set(pattern, cachedRequests);
+
+        // 更新最后时间戳
+        this.lastTimestamps.set(pattern, Date.now());
+
+        logger.debug(
+          `[NetworkListener] Cached response for ${pattern}, cache size: ${cachedRequests.length}`,
+        );
       } catch (error: any) {
         logger.error(`Loading finished error: ${error}`, { url: pattern });
         // 确保即使出现错误也要删除requestId，避免内存泄漏

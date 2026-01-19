@@ -388,28 +388,43 @@ export class BrowserPage {
       const networkListener = this.cdpClient.getNetworkListener();
       if (networkListener) {
         // 先检查缓存中是否已经有匹配的请求
-        const cachedRequests = networkListener.getCachedRequests(urlPattern);
-        if (cachedRequests.length > 0) {
-          // 使用最新的缓存请求
-          const latestRequest = cachedRequests[cachedRequests.length - 1];
-          logger.debug(
-            `expectResponseText: found cached request for ${urlOrPredicate}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
-          );
+        // 遍历所有缓存，找到匹配的请求
+        const cacheStats = networkListener.getCacheStats();
+        let foundCachedRequest = false;
 
-          // 将响应转换为字符串
-          let body: string;
-          if (typeof latestRequest.response === "string") {
-            body = latestRequest.response;
-          } else if (typeof latestRequest.response === "object") {
-            body = JSON.stringify(latestRequest.response);
-          } else {
-            body = String(latestRequest.response);
-          }
+        for (const [pattern] of cacheStats) {
+          const regex = new RegExp(pattern);
+          // 检查 pattern 是否匹配 urlOrPredicate
+          if (regex.test(urlOrPredicate)) {
+            const cachedRequests = networkListener.getCachedRequests(pattern);
+            if (cachedRequests.length > 0) {
+              // 使用最新的缓存请求
+              const latestRequest = cachedRequests[cachedRequests.length - 1];
+              logger.debug(
+                `expectResponseText: found cached request for ${urlOrPredicate} in pattern ${pattern}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
+              );
 
-          if (body) {
-            resolve(body);
-            return;
+              // 将响应转换为字符串
+              let body: string;
+              if (typeof latestRequest.response === "string") {
+                body = latestRequest.response;
+              } else if (typeof latestRequest.response === "object") {
+                body = JSON.stringify(latestRequest.response);
+              } else {
+                body = String(latestRequest.response);
+              }
+
+              if (body) {
+                resolve(body);
+                foundCachedRequest = true;
+                break;
+              }
+            }
           }
+        }
+
+        if (foundCachedRequest) {
+          return;
         }
 
         // 没有缓存，添加 callback 等待新请求
