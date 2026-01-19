@@ -21,6 +21,7 @@ export class NetworkListener {
   private har: HAR;
   private config: NetworkListenerConfig;
   private initialized: boolean;
+  private enabled: boolean; // 控制监听器是否启用
   private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果
   private maxCacheSize: number; // 最大缓存条数
   private lastTimestamps: Map<string, number>; // 记录每个 pattern 的最后时间戳
@@ -31,6 +32,7 @@ export class NetworkListener {
     this.requestIds = new Map();
     this.dumpMap = new Map();
     this.initialized = false;
+    this.enabled = true; // 默认启用
     this.requestCache = new Map();
     this.maxCacheSize = config.maxCacheSize || 100; // 默认缓存 100 条
     this.lastTimestamps = new Map();
@@ -83,6 +85,11 @@ export class NetworkListener {
   private handleRequestWillBeSent(
     event: Protocol.Network.RequestWillBeSentEvent,
   ): void {
+    // 如果监听器未启用，直接返回
+    if (!this.enabled) {
+      return;
+    }
+
     const { requestId, request, type, timestamp } = event;
     const { url, method } = request;
     const pureUrl = getPureUrl(url);
@@ -138,6 +145,11 @@ export class NetworkListener {
   }
 
   private async handleResponseReceived(params: any): Promise<void> {
+    // 如果监听器未启用，直接返回
+    if (!this.enabled) {
+      return;
+    }
+
     const { requestId, response, timestamp, type } = params;
 
     // 只处理 XHR 请求，不处理 Fetch 请求（Fetch 请求通常是页面资源）
@@ -192,12 +204,18 @@ export class NetworkListener {
       logger.error(`Response received error: ${error}`);
     }
 
-    this.dumpMap.delete(requestId);
+    // 不要在这里删除 dumpMap，因为 handleLoadingFinished 还需要它
+    // this.dumpMap.delete(requestId);
   }
 
   private async handleLoadingFinished(
     event: Protocol.Network.LoadingFinishedEvent,
   ): Promise<void> {
+    // 如果监听器未启用，直接返回
+    if (!this.enabled) {
+      return;
+    }
+
     const { requestId } = event;
 
     // 获取请求信息
@@ -361,6 +379,23 @@ export class NetworkListener {
       stats.set(pattern, requests.length);
     }
     return stats;
+  }
+
+  // 启用网络监听
+  enable(): void {
+    this.enabled = true;
+    logger.debug("[NetworkListener] NetworkListener enabled");
+  }
+
+  // 禁用网络监听
+  disable(): void {
+    this.enabled = false;
+    logger.debug("[NetworkListener] NetworkListener disabled");
+  }
+
+  // 检查监听器是否启用
+  isEnabled(): boolean {
+    return this.enabled;
   }
 
   clearCallbacks(): void {
