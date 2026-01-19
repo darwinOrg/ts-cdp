@@ -251,16 +251,14 @@ export class NetworkListener {
     this.requestIds.delete(requestId);
   }
 
-  addCallback(url: string, callback: NetworkCallback): void {
-    const pureUrl = getPureUrl(url);
-    this.callbacks.set(pureUrl, callback);
-    logger.debug(`Added callback for: ${pureUrl}`);
+  addCallback(pattern: string, callback: NetworkCallback): void {
+    this.callbacks.set(pattern, callback);
+    logger.debug(`Added callback for: ${pattern}`);
   }
 
-  removeCallback(url: string): void {
-    const pureUrl = getPureUrl(url);
-    this.callbacks.delete(pureUrl);
-    logger.debug(`Removed callback for: ${pureUrl}`);
+  removeCallback(pattern: string): void {
+    this.callbacks.delete(pattern);
+    logger.debug(`Removed callback for: ${pattern}`);
   }
 
   getHAR(): HAR {
