@@ -325,8 +325,13 @@ export class BrowserPage {
     callback: () => Promise<void>,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      // 将 ** 转换为 .* 用于正则匹配
-      const urlPattern = urlOrPredicate.replace(/\*\*/g, ".*");
+      // 将 ** 转换为 .* 用于正则匹配，并转义其他正则特殊字符
+      let urlPattern = urlOrPredicate.replace(/\*\*/g, "WILDCARD_PLACEHOLDER");
+      // 转义正则特殊字符（除了 WILDCARD_PLACEHOLDER）
+      urlPattern = urlPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // 将 WILDCARD_PLACEHOLDER 替换为 .*
+      urlPattern = urlPattern.replace(/WILDCARD_PLACEHOLDER/g, ".*");
+
       let listenerActive = false; // 初始状态为不活跃
       let listenerCalled = false; // 标记监听器是否被调用
 
