@@ -1,6 +1,6 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import { getPureUrl, toBeijingTimeISOString } from "../utils/url";
+import { getPureUrl, toLocalTimeISOString } from "../utils/url";
 import { createLogger } from "../utils/logger";
 import type {
   NetworkCallback,
@@ -142,7 +142,42 @@ export class NetworkListener {
         type,
         timestamp,
       });
-      logger.debug(`[${type}] → ${method} ${url}`);
+
+      // 只打印匹配 watchedPatterns 的 XHR 请求日志
+      let shouldLog = false;
+      if (this.enabled && this.watchedPatterns.length > 0) {
+        // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
+        for (const pattern of this.watchedPatterns) {
+          try {
+            // 转换通配符为正则表达式
+            let regexPattern = pattern;
+            // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
+            regexPattern = regexPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
+            // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
+            regexPattern = regexPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
+            // 转义其他正则特殊字符（不包括 /）
+            regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+            // 将占位符替换为正则表达式
+            regexPattern = regexPattern.replace(/DOUBLE_WILDCARD/g, ".*");
+            regexPattern = regexPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
+
+            const regex = new RegExp(regexPattern);
+            if (regex.test(url)) {
+              shouldLog = true;
+              break;
+            }
+          } catch (error) {
+            // pattern 无效，跳过
+          }
+        }
+      } else if (this.enabled && this.watchedPatterns.length === 0) {
+        // 如果启用了监听器但没有指定 watchedPatterns，打印所有 XHR 请求
+        shouldLog = true;
+      }
+
+      if (shouldLog) {
+        logger.debug(`[${type}] → ${method} ${url}`);
+      }
     }
   }
 
@@ -276,7 +311,19 @@ export class NetworkListener {
             // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
             for (const pattern of this.watchedPatterns) {
                 try {
-                    const regex = new RegExp(pattern);
+                    // 转换通配符为正则表达式
+                    let regexPattern = pattern;
+                    // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
+                    regexPattern = regexPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
+                    // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
+                    regexPattern = regexPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
+                    // 转义其他正则特殊字符（不包括 /）
+                    regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+                    // 将占位符替换为正则表达式
+                    regexPattern = regexPattern.replace(/DOUBLE_WILDCARD/g, ".*");
+                    regexPattern = regexPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
+
+                    const regex = new RegExp(regexPattern);
                     if (regex.test(req.url)) {
                         // 匹配成功，使用 pattern 作为缓存键
                         this.requestCache.set(pattern, [
@@ -289,7 +336,7 @@ export class NetworkListener {
                         ]);
 
                         logger.debug(
-                            `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toBeijingTimeISOString(Date.now())}`,
+                            `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocalTimeISOString(Date.now())}`,
                         );
                         break; // 只使用第一个匹配的 pattern
                     }

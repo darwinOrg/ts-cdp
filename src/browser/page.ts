@@ -2,7 +2,7 @@ import type { CDPClient } from "./client";
 import { createLogger } from "../utils/logger";
 import {
   getBeijingTimeISOString,
-  toBeijingTimeISOString,
+  toLocalTimeISOString,
 } from "../utils/url";
 import { BrowserLocator } from "./locator";
 import type { CachedRequest } from "../types";
@@ -43,6 +43,18 @@ export class BrowserPage {
     };
     this.pendingPages = [];
     this.initialized = false;
+  }
+
+  // 检查连接是否仍然有效
+  private isConnectionValid(): boolean {
+    return this.cdpClient.isConnected() && this.client !== null;
+  }
+
+  // 确保连接有效，如果无效则抛出错误
+  private ensureConnection(): void {
+    if (!this.isConnectionValid()) {
+      throw new Error("Browser connection is closed or invalid");
+    }
   }
 
   async init(): Promise<void> {
@@ -170,18 +182,21 @@ export class BrowserPage {
         }
 
         try {
+          // 转义 selector 中的单引号
+          const escapedSelector = selector.replace(/'/g, "\\'");
           const result = await this.runtime?.evaluate({
-            expression: `document.querySelector('${selector}') !== null`,
+            expression: `document.querySelector('${escapedSelector}') !== null`,
           });
 
           const elementExists = result?.result?.value;
 
           if (elementExists) {
             if (options.state === "visible") {
+              const escapedSelector = selector.replace(/'/g, "\\'");
               const visible = await this.runtime?.evaluate({
                 expression: `
                   (function() {
-                    const el = document.querySelector('${selector}');
+                    const el = document.querySelector('${escapedSelector}');
                     const style = window.getComputedStyle(el);
                     return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
                   })()
@@ -211,14 +226,28 @@ export class BrowserPage {
   }
 
   async executeScript(script: string): Promise<any> {
-    if (!this.runtime) throw new Error("Runtime not initialized");
+    // 检查连接状态
+    if (!this.isConnectionValid() || !this.runtime) {
+      logger.warn("Cannot execute script: connection is closed or invalid");
+      return null;
+    }
 
-    const result = await this.runtime.evaluate({
-      expression: script,
-      returnByValue: true,
-    });
+    try {
+      const result = await this.runtime.evaluate({
+        expression: script,
+        returnByValue: true,
+      });
 
-    return result?.result?.value;
+      return result?.result?.value;
+    } catch (error) {
+      // 检查是否是 WebSocket 关闭错误
+      if (error instanceof Error && error.message.includes("WebSocket is not open")) {
+        logger.warn(`Failed to execute script: WebSocket connection is closed`);
+        return null;
+      }
+      logger.error(`Failed to execute script: ${script}`, error);
+      return null;
+    }
   }
 
   async evaluate<T>(script: string): Promise<T> {
@@ -253,13 +282,27 @@ export class BrowserPage {
   }
 
   async getHTML(): Promise<string> {
-    if (!this.runtime) throw new Error("Runtime not initialized");
+    // 检查连接状态
+    if (!this.isConnectionValid() || !this.runtime) {
+      logger.warn("Cannot get HTML: connection is closed or invalid");
+      return "";
+    }
 
-    const result = await this.runtime.evaluate({
-      expression: "document.documentElement.outerHTML",
-    });
+    try {
+      const result = await this.runtime.evaluate({
+        expression: "document.documentElement.outerHTML",
+      });
 
-    return result?.result?.value || "";
+      return result?.result?.value || "";
+    } catch (error) {
+      // 检查是否是 WebSocket 关闭错误
+      if (error instanceof Error && error.message.includes("WebSocket is not open")) {
+        logger.warn(`Failed to get HTML: WebSocket connection is closed`);
+        return "";
+      }
+      logger.error(`Failed to get HTML:`, error);
+      return "";
+    }
   }
 
   async screenshot(format: "png" | "jpeg" | "webp" = "png"): Promise<string> {
@@ -273,17 +316,49 @@ export class BrowserPage {
   }
 
   async getTitle(): Promise<string> {
-    const result = await this.runtime?.evaluate({
-      expression: "document.title",
-    });
-    return result?.result?.value || "";
+    // 检查连接状态
+    if (!this.isConnectionValid() || !this.runtime) {
+      logger.warn("Cannot get title: connection is closed or invalid");
+      return "";
+    }
+
+    try {
+      const result = await this.runtime.evaluate({
+        expression: "document.title",
+      });
+      return result?.result?.value || "";
+    } catch (error) {
+      // 检查是否是 WebSocket 关闭错误
+      if (error instanceof Error && error.message.includes("WebSocket is not open")) {
+        logger.warn(`Failed to get title: WebSocket connection is closed`);
+        return "";
+      }
+      logger.error(`Failed to get title:`, error);
+      return "";
+    }
   }
 
   async getUrl(): Promise<string> {
-    const result = await this.runtime?.evaluate({
-      expression: "window.location.href",
-    });
-    return result?.result?.value || "";
+    // 检查连接状态
+    if (!this.isConnectionValid() || !this.runtime) {
+      logger.warn("Cannot get URL: connection is closed or invalid");
+      return "";
+    }
+
+    try {
+      const result = await this.runtime.evaluate({
+        expression: "window.location.href",
+      });
+      return result?.result?.value || "";
+    } catch (error) {
+      // 检查是否是 WebSocket 关闭错误
+      if (error instanceof Error && error.message.includes("WebSocket is not open")) {
+        logger.warn(`Failed to get URL: WebSocket connection is closed`);
+        return "";
+      }
+      logger.error(`Failed to get URL:`, error);
+      return "";
+    }
   }
 
   async close(): Promise<void> {
@@ -328,7 +403,7 @@ export class BrowserPage {
   async expectResponseText(
     urlOrPredicate: string,
     callback: () => Promise<void>,
-    timeout: number = 30000,
+    timeout: number = 10000,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
       // 支持 Playwright 风格的 URL 匹配规则
@@ -419,7 +494,7 @@ export class BrowserPage {
               // 使用最新的缓存请求
               const latestRequest = cachedRequests[cachedRequests.length - 1];
               logger.debug(
-                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toBeijingTimeISOString(latestRequest.timestamp)}`,
+                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
               );
               matchedRequests.push({ url, request: latestRequest });
             }
@@ -433,7 +508,7 @@ export class BrowserPage {
           });
 
           logger.debug(
-            `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toBeijingTimeISOString(latestMatched.request.timestamp)}`,
+            `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toLocalTimeISOString(latestMatched.request.timestamp)}`,
           );
 
           // 将响应转换为字符串

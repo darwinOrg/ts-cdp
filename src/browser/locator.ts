@@ -30,8 +30,10 @@ export class BrowserLocator {
 
   async exists(): Promise<boolean> {
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}') !== null`,
+        `document.querySelector('${escapedSelector}') !== null`,
       );
       return result || false;
     } catch (error) {
@@ -48,8 +50,10 @@ export class BrowserLocator {
 
     try {
       logger.debug(`locator[${this.selector}] getText: calling executeScript`);
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').innerText`,
+        `document.querySelector('${escapedSelector}').innerText`,
       );
       logger.debug(
         `locator[${this.selector}] getText result:`,
@@ -70,8 +74,10 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').getAttribute('${attr}')`,
+        `document.querySelector('${escapedSelector}').getAttribute('${attr}')`,
       );
       return result ? result.trim() : "";
     } catch (error) {
@@ -86,8 +92,10 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').outerHTML`,
+        `document.querySelector('${escapedSelector}').outerHTML`,
       );
       return result || "";
     } catch (error) {
@@ -102,8 +110,10 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelector('${this.selector}').textContent`,
+        `document.querySelector('${escapedSelector}').textContent`,
       );
       return result ? result.trim() : "";
     } catch (error) {
@@ -118,8 +128,10 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       await this.page.executeScript(
-        `document.querySelector('${this.selector}').click()`,
+        `document.querySelector('${escapedSelector}').click()`,
       );
     } catch (error) {
       logger.error(`locator[${this.selector}] click error:`, error);
@@ -133,9 +145,11 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       await this.page.executeScript(
         `
-        const el = document.querySelector('${this.selector}');
+        const el = document.querySelector('${escapedSelector}');
         if (el) {
           const event = new MouseEvent('mouseover', {
             bubbles: true,
@@ -191,10 +205,12 @@ export class BrowserLocator {
     }
 
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
         `
         (function() {
-          const el = document.querySelector('${this.selector}');
+          const el = document.querySelector('${escapedSelector}');
           const style = window.getComputedStyle(el);
           return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0 && el.offsetHeight > 0;
         })()
@@ -226,8 +242,10 @@ export class BrowserLocator {
 
   async getAllTexts(): Promise<string[]> {
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.innerText)`,
+        `Array.from(document.querySelectorAll('${escapedSelector}')).map(el => el.innerText)`,
       );
       return result || [];
     } catch (error) {
@@ -238,8 +256,10 @@ export class BrowserLocator {
 
   async getAllAttributes(attr: string): Promise<string[]> {
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `Array.from(document.querySelectorAll('${this.selector}')).map(el => el.getAttribute('${attr}'))`,
+        `Array.from(document.querySelectorAll('${escapedSelector}')).map(el => el.getAttribute('${attr}'))`,
       );
       return result || [];
     } catch (error) {
@@ -253,8 +273,10 @@ export class BrowserLocator {
 
   async getCount(): Promise<number> {
     try {
+      // 转义 selector 中的单引号
+      const escapedSelector = this.selector.replace(/'/g, "\\'");
       const result = await this.page.executeScript(
-        `document.querySelectorAll('${this.selector}').length`,
+        `document.querySelectorAll('${escapedSelector}').length`,
       );
       return result || 0;
     } catch (error) {

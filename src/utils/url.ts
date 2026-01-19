@@ -28,12 +28,14 @@ export function getBeijingTimeISOString(): string {
 }
 
 /**
- * 将时间戳转换为北京时间的 ISO 字符串
+ * 将时间戳转换为本地时区的 ISO 字符串
  * @param timestamp 时间戳（毫秒）
- * @returns 北京时间的 ISO 字符串（UTC+8）
+ * @returns 本地时区的 ISO 字符串
  */
-export function toBeijingTimeISOString(timestamp: number): string {
+export function toLocalTimeISOString(timestamp: number): string {
   const date = new Date(timestamp);
-  const beijingTime = new Date(date.getTime() + 8 * 60 * 60 * 1000);
-  return beijingTime.toISOString();
+  // 使用本地时区格式化时间
+  const offset = date.getTimezoneOffset() * 60 * 1000;
+  const localTime = new Date(date.getTime() - offset);
+  return localTime.toISOString();
 }
