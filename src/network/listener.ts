@@ -227,19 +227,20 @@ export class NetworkListener {
     const { Network } = this.client;
 
     try {
-      // 获取请求体
+      // 获取请求体（对非 GET 请求获取，如 POST、PUT、PATCH 等）
       let requestBody;
-      try {
-        const requestPostData = await Network.getRequestPostData({
-          requestId,
-        });
-        requestBody = requestPostData.postData;
-      } catch (requestError) {
-        // 某些请求可能无法获取请求体（如 GET 请求），这是正常的，不记录日志
-        // logger.debug(
-        //   `Could not get request body for ${requestId}:`,
-        //   requestError,
-        // );
+      if (req.method !== "GET") {
+        try {
+          const requestPostData = await Network.getRequestPostData({
+            requestId,
+          });
+          requestBody = requestPostData.postData;
+        } catch (requestError) {
+          logger.debug(
+            `Could not get request body for ${req.method} request ${requestId}:`,
+            requestError,
+          );
+        }
       }
 
       // 获取响应体
