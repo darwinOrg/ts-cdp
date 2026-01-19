@@ -5,6 +5,7 @@ import {
   toBeijingTimeISOString,
 } from "../utils/url";
 import { BrowserLocator } from "./locator";
+import type { CachedRequest } from "../types";
 
 const logger = createLogger("BrowserPage");
 
@@ -402,7 +403,8 @@ export class BrowserPage {
           logger.debug(`  Cached URL: ${url}`);
         }
 
-        let foundCachedRequest = false;
+        // 在所有匹配的URL中找到时间戳最新的请求
+        const matchedRequests: { url: string; request: CachedRequest }[] = [];
 
         for (const [url] of cacheStats) {
           // 检查 URL 是否匹配 urlOrPredicate（使用转换后的 pattern）
@@ -419,28 +421,40 @@ export class BrowserPage {
               logger.debug(
                 `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toBeijingTimeISOString(latestRequest.timestamp)}`,
               );
-
-              // 将响应转换为字符串
-              let body: string;
-              if (typeof latestRequest.response === "string") {
-                body = latestRequest.response;
-              } else if (typeof latestRequest.response === "object") {
-                body = JSON.stringify(latestRequest.response);
-              } else {
-                body = String(latestRequest.response);
-              }
-
-              if (body) {
-                resolve(body);
-                foundCachedRequest = true;
-                break;
-              }
+              matchedRequests.push({ url, request: latestRequest });
             }
           }
         }
 
-        if (foundCachedRequest) {
-          return;
+        // 在所有匹配的请求中，找到时间戳最新的那个
+        if (matchedRequests.length > 0) {
+          const latestMatched = matchedRequests.reduce((latest, current) => {
+            return current.request.timestamp > latest.request.timestamp ? current : latest;
+          });
+
+          logger.debug(
+            `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toBeijingTimeISOString(latestMatched.request.timestamp)}`,
+          );
+
+          // 将响应转换为字符串
+          let body: string;
+          if (typeof latestMatched.request.response === "string") {
+            body = latestMatched.request.response;
+          } else if (typeof latestMatched.request.response === "object") {
+            body = JSON.stringify(latestMatched.request.response);
+          } else {
+            body = String(latestMatched.request.response);
+          }
+
+          if (body) {
+            // 清除已获取的缓存，避免下次重复获取
+            networkListener.clearCache(latestMatched.url);
+            logger.debug(
+              `expectResponseText: cleared cache for URL ${latestMatched.url}`,
+            );
+            resolve(body);
+            return;
+          }
         }
 
         // 没有缓存，添加 callback 等待新请求

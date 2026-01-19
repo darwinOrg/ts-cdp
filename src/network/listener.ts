@@ -1,6 +1,6 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import { getPureUrl } from "../utils/url";
+import { getPureUrl, toBeijingTimeISOString } from "../utils/url";
 import { createLogger } from "../utils/logger";
 import type {
   NetworkCallback,
@@ -269,28 +269,20 @@ export class NetworkListener {
         );
       }
 
-      // 缓存所有 XHR 请求（按 URL 存储）
+      // 缓存所有 XHR 请求（按 URL 存储，每个 URL 只保留最新的一条）
       if (req.url) {
-        const cachedRequests = this.requestCache.get(req.url) || [];
-        cachedRequests.push({
-          url: req.url,
-          timestamp: Date.now(),
-          response: parsedResponse,
-          request: requestBody,
-        });
-
-        // 限制缓存大小（LIFO：移除最旧的）
-        if (cachedRequests.length > this.maxCacheSize) {
-          cachedRequests.shift();
-          logger.debug(
-            `[NetworkListener] Cache size exceeded for URL ${req.url}, removed oldest entry`,
-          );
-        }
-
-        this.requestCache.set(req.url, cachedRequests);
+        // 直接覆盖旧数据，只保留最新的请求
+        this.requestCache.set(req.url, [
+          {
+            url: req.url,
+            timestamp: Date.now(),
+            response: parsedResponse,
+            request: requestBody,
+          },
+        ]);
 
         logger.debug(
-          `[NetworkListener] Cached XHR response for ${req.url}, cache size: ${cachedRequests.length}`,
+          `[NetworkListener] Cached XHR response for ${req.url}, timestamp: ${toBeijingTimeISOString(Date.now())}`,
         );
       }
 
