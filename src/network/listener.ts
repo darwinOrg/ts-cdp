@@ -256,32 +256,34 @@ export class NetworkListener {
           callback(parsedResponse, requestBody);
         }
 
-        // 缓存请求结果（所有 XHR 请求都会被缓存）
+        // 缓存请求结果（所有 XHR 请求都会被缓存，按 URL 存储）
         const req = this.dumpMap.get(requestId);
-        const cachedRequests = this.requestCache.get(pattern) || [];
-        cachedRequests.push({
-          url: req?.url || "",
-          timestamp: Date.now(),
-          response: parsedResponse,
-          request: requestBody,
-        });
+        if (req && req.url) {
+          const cachedRequests = this.requestCache.get(req.url) || [];
+          cachedRequests.push({
+            url: req.url,
+            timestamp: Date.now(),
+            response: parsedResponse,
+            request: requestBody,
+          });
 
-        // 限制缓存大小（LIFO：移除最旧的）
-        if (cachedRequests.length > this.maxCacheSize) {
-          cachedRequests.shift();
+          // 限制缓存大小（LIFO：移除最旧的）
+          if (cachedRequests.length > this.maxCacheSize) {
+            cachedRequests.shift();
+            logger.debug(
+              `[NetworkListener] Cache size exceeded for URL ${req.url}, removed oldest entry`,
+            );
+          }
+
+          this.requestCache.set(req.url, cachedRequests);
+
           logger.debug(
-            `[NetworkListener] Cache size exceeded for pattern ${pattern}, removed oldest entry`,
+            `[NetworkListener] Cached response for ${req.url}, cache size: ${cachedRequests.length}`,
           );
         }
 
-        this.requestCache.set(pattern, cachedRequests);
-
         // 更新最后时间戳
         this.lastTimestamps.set(pattern, Date.now());
-
-        logger.debug(
-          `[NetworkListener] Cached response for ${pattern}, cache size: ${cachedRequests.length}`,
-        );
       } catch (error: any) {
         logger.error(`Loading finished error: ${error}`, { url: pattern });
         // 确保即使出现错误也要删除requestId，避免内存泄漏

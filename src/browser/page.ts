@@ -389,20 +389,31 @@ export class BrowserPage {
       const networkListener = this.cdpClient.getNetworkListener();
       if (networkListener) {
         // 先检查缓存中是否已经有匹配的请求
-        // 遍历所有缓存，找到匹配的请求
+        // 遍历所有缓存的 URL，找到匹配的请求
         const cacheStats = networkListener.getCacheStats();
+        logger.debug(
+          `expectResponseText: checking cache. Total cached URLs: ${cacheStats.size}`,
+        );
+        for (const [url] of cacheStats) {
+          logger.debug(`  Cached URL: ${url}`);
+        }
+
         let foundCachedRequest = false;
 
-        for (const [pattern] of cacheStats) {
-          const regex = new RegExp(pattern);
-          // 检查 pattern 是否匹配 urlOrPredicate
-          if (regex.test(urlOrPredicate)) {
-            const cachedRequests = networkListener.getCachedRequests(pattern);
+        for (const [url] of cacheStats) {
+          // 检查 URL 是否匹配 urlOrPredicate（使用转换后的 pattern）
+          const regex = new RegExp(urlPattern);
+          const isMatch = regex.test(url);
+          logger.debug(
+            `expectResponseText: checking cached URL ${url} against pattern ${urlPattern}: ${isMatch}`,
+          );
+          if (isMatch) {
+            const cachedRequests = networkListener.getCachedRequests(url);
             if (cachedRequests.length > 0) {
               // 使用最新的缓存请求
               const latestRequest = cachedRequests[cachedRequests.length - 1];
               logger.debug(
-                `expectResponseText: found cached request for ${urlOrPredicate} in pattern ${pattern}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
+                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
               );
 
               // 将响应转换为字符串
