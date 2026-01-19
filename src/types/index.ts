@@ -96,9 +96,17 @@ export interface CDPClientConfig {
 export interface NetworkListenerConfig {
   watchUrls?: string[];
   enableHAR?: boolean;
+  maxCacheSize?: number;
 }
 
 export interface RequestData {
   pattern: string;
   params: number;
+}
+
+export interface CachedRequest {
+  url: string;
+  timestamp: number;
+  response: any;
+  request?: string;
 }

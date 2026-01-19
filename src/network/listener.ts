@@ -8,6 +8,7 @@ import type {
   RequestData,
   HAR,
   NetworkRequestInfo,
+  CachedRequest,
 } from "../types";
 
 const logger = createLogger("NetworkListener");
@@ -20,6 +21,9 @@ export class NetworkListener {
   private har: HAR;
   private config: NetworkListenerConfig;
   private initialized: boolean;
+  private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果
+  private maxCacheSize: number; // 最大缓存条数
+  private lastTimestamps: Map<string, number>; // 记录每个 pattern 的最后时间戳
 
   constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
     this.client = client;
@@ -27,6 +31,9 @@ export class NetworkListener {
     this.requestIds = new Map();
     this.dumpMap = new Map();
     this.initialized = false;
+    this.requestCache = new Map();
+    this.maxCacheSize = config.maxCacheSize || 100; // 默认缓存 100 条
+    this.lastTimestamps = new Map();
     this.har = {
       log: {
         version: "1.2",
@@ -37,6 +44,7 @@ export class NetworkListener {
     this.config = {
       watchUrls: config.watchUrls || [],
       enableHAR: config.enableHAR !== false,
+      maxCacheSize: config.maxCacheSize || 100,
     };
   }
 
@@ -89,14 +97,28 @@ export class NetworkListener {
           `[NetworkListener] Checking URL ${url} against pattern ${pattern}: ${isMatch}`,
         );
         if (isMatch) {
-          this.requestIds.set(requestId, {
-            pattern,
-            params: callback.length,
-          });
+          // 检查时间戳：请求时间必须大于上次记录的时间戳
+          const lastTimestamp = this.lastTimestamps.get(pattern) || 0;
+          const requestTime = timestamp * 1000; // 转换为毫秒
+
           logger.debug(
-            `[NetworkListener] Match found! Added requestId ${requestId} for pattern ${pattern}`,
+            `[NetworkListener] Request time: ${requestTime}, Last timestamp: ${lastTimestamp}, Time difference: ${requestTime - lastTimestamp}ms`,
           );
-          break;
+
+          if (requestTime > lastTimestamp) {
+            this.requestIds.set(requestId, {
+              pattern,
+              params: callback.length,
+            });
+            logger.debug(
+              `[NetworkListener] Match found! Added requestId ${requestId} for pattern ${pattern}`,
+            );
+            break;
+          } else {
+            logger.debug(
+              `[NetworkListener] Request time ${requestTime} is not after last timestamp ${lastTimestamp}, skipping`,
+            );
+          }
         }
       }
     }
@@ -232,7 +254,35 @@ export class NetworkListener {
             // 不中断处理，使用原始响应体
           }
 
+          // 调用回调
           callback(parsedResponse, requestBody);
+
+          // 缓存请求结果
+          const req = this.dumpMap.get(requestId);
+          const cachedRequests = this.requestCache.get(pattern) || [];
+          cachedRequests.push({
+            url: req?.url || "",
+            timestamp: Date.now(),
+            response: parsedResponse,
+            request: requestBody,
+          });
+
+          // 限制缓存大小（LIFO：移除最旧的）
+          if (cachedRequests.length > this.maxCacheSize) {
+            cachedRequests.shift();
+            logger.debug(
+              `[NetworkListener] Cache size exceeded for pattern ${pattern}, removed oldest entry`,
+            );
+          }
+
+          this.requestCache.set(pattern, cachedRequests);
+
+          // 更新最后时间戳
+          this.lastTimestamps.set(pattern, Date.now());
+
+          logger.debug(
+            `[NetworkListener] Cached response for ${pattern}, cache size: ${cachedRequests.length}`,
+          );
         }
 
         this.requestIds.delete(requestId);
@@ -274,6 +324,39 @@ export class NetworkListener {
 
   clearHAR(): void {
     this.har.log.entries = [];
+  }
+
+  // 获取指定 pattern 的缓存请求
+  getCachedRequests(pattern: string): CachedRequest[] {
+    return this.requestCache.get(pattern) || [];
+  }
+
+  // 获取最新的缓存请求
+  getLatestCachedRequest(pattern: string): CachedRequest | undefined {
+    const cachedRequests = this.getCachedRequests(pattern);
+    return cachedRequests.length > 0 ? cachedRequests[cachedRequests.length - 1] : undefined;
+  }
+
+  // 清除指定 pattern 的缓存
+  clearCache(pattern?: string): void {
+    if (pattern) {
+      this.requestCache.delete(pattern);
+      this.lastTimestamps.delete(pattern);
+      logger.debug(`[NetworkListener] Cleared cache for pattern: ${pattern}`);
+    } else {
+      this.requestCache.clear();
+      this.lastTimestamps.clear();
+      logger.debug(`[NetworkListener] Cleared all cache`);
+    }
+  }
+
+  // 获取缓存统计信息
+  getCacheStats(): Map<string, number> {
+    const stats = new Map<string, number>();
+    for (const [pattern, requests] of this.requestCache.entries()) {
+      stats.set(pattern, requests.length);
+    }
+    return stats;
   }
 
   clearCallbacks(): void {

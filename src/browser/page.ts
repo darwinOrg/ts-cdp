@@ -337,7 +337,7 @@ export class BrowserPage {
       // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
       urlPattern = urlPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
 
-      // 转义其他正则特殊字符
+      // 转义其他正则特殊字符（不包括 /）
       urlPattern = urlPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
       // 将占位符替换为正则表达式
