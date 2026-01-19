@@ -235,11 +235,11 @@ export class NetworkListener {
         });
         requestBody = requestPostData.postData;
       } catch (requestError) {
-        // 某些请求可能无法获取请求体，记录但不中断处理
-        logger.debug(
-          `Could not get request body for ${requestId}:`,
-          requestError,
-        );
+        // 某些请求可能无法获取请求体（如 GET 请求），这是正常的，不记录日志
+        // logger.debug(
+        //   `Could not get request body for ${requestId}:`,
+        //   requestError,
+        // );
       }
 
       // 获取响应体
