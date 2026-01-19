@@ -325,12 +325,24 @@ export class BrowserPage {
     callback: () => Promise<void>,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
-      // 将 ** 转换为 .* 用于正则匹配，并转义其他正则特殊字符
-      let urlPattern = urlOrPredicate.replace(/\*\*/g, "WILDCARD_PLACEHOLDER");
-      // 转义正则特殊字符（除了 WILDCARD_PLACEHOLDER）
-      urlPattern = urlPattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // 将 WILDCARD_PLACEHOLDER 替换为 .*
-      urlPattern = urlPattern.replace(/WILDCARD_PLACEHOLDER/g, ".*");
+      // 支持 Playwright 风格的 URL 匹配规则
+      // 1. 字符串匹配：完全匹配
+      // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
+      // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
+      let urlPattern = urlOrPredicate;
+
+      // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
+      urlPattern = urlPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
+
+      // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
+      urlPattern = urlPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
+
+      // 转义其他正则特殊字符
+      urlPattern = urlPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+
+      // 将占位符替换为正则表达式
+      urlPattern = urlPattern.replace(/DOUBLE_WILDCARD/g, ".*");
+      urlPattern = urlPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
 
       let listenerActive = false; // 初始状态为不活跃
       let listenerCalled = false; // 标记监听器是否被调用
