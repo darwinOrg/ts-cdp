@@ -200,93 +200,99 @@ export class NetworkListener {
   ): Promise<void> {
     const { requestId } = event;
 
-    // 如果有匹配的 callback，调用 callback
-    if (this.requestIds.has(requestId)) {
-      const { pattern, params } = this.requestIds.get(requestId)!;
-      const { Network } = this.client;
+    // 获取请求信息
+    const req = this.dumpMap.get(requestId);
+    if (!req || req.type !== "XHR") {
+      return;
+    }
 
+    const { Network } = this.client;
+
+    try {
+      // 获取请求体
+      let requestBody;
       try {
-        // 获取请求体
-        let requestBody;
-        if (params === 2) {
-          try {
-            const requestPostData = await Network.getRequestPostData({
-              requestId,
-            });
-            requestBody = requestPostData.postData;
-          } catch (requestError) {
-            // 某些请求可能无法获取请求体，记录但不中断处理
-            logger.debug(
-              `Could not get request body for ${requestId}:`,
-              requestError,
-            );
-          }
-        }
+        const requestPostData = await Network.getRequestPostData({
+          requestId,
+        });
+        requestBody = requestPostData.postData;
+      } catch (requestError) {
+        // 某些请求可能无法获取请求体，记录但不中断处理
+        logger.debug(
+          `Could not get request body for ${requestId}:`,
+          requestError,
+        );
+      }
 
-        // 获取响应体
-        let responseBody;
-        try {
-          responseBody = await Network.getResponseBody({ requestId });
-        } catch (responseError) {
-          // 某些响应可能无法获取响应体（如二进制文件），记录但不中断处理
+      // 获取响应体
+      let responseBody;
+      try {
+        responseBody = await Network.getResponseBody({ requestId });
+      } catch (responseError) {
+        // 某些响应可能无法获取响应体（如二进制文件），记录但不中断处理
+        logger.debug(
+          `Could not get response body for ${requestId}:`,
+          responseError,
+        );
+        return;
+      }
+
+      // 解析响应
+      let parsedResponse = responseBody.body;
+      try {
+        if (responseBody.body && responseBody.body.trim()) {
+          parsedResponse = JSON.parse(responseBody.body);
+        }
+      } catch (parseError) {
+        logger.debug(
+          `Could not parse response as JSON for ${req.url}, using raw response:`,
+          parseError,
+        );
+      }
+
+      // 缓存所有 XHR 请求（按 URL 存储）
+      if (req.url) {
+        const cachedRequests = this.requestCache.get(req.url) || [];
+        cachedRequests.push({
+          url: req.url,
+          timestamp: Date.now(),
+          response: parsedResponse,
+          request: requestBody,
+        });
+
+        // 限制缓存大小（LIFO：移除最旧的）
+        if (cachedRequests.length > this.maxCacheSize) {
+          cachedRequests.shift();
           logger.debug(
-            `Could not get response body for ${requestId}:`,
-            responseError,
-          );
-          this.requestIds.delete(requestId);
-          return;
-        }
-
-        // 解析响应
-        let parsedResponse = responseBody.body;
-        try {
-          if (responseBody.body && responseBody.body.trim()) {
-            parsedResponse = JSON.parse(responseBody.body);
-          }
-        } catch (parseError) {
-          logger.debug(
-            `Could not parse response as JSON for ${pattern}, using raw response:`,
-            parseError,
+            `[NetworkListener] Cache size exceeded for URL ${req.url}, removed oldest entry`,
           );
         }
 
-        // 如果有匹配的 callback，调用 callback
+        this.requestCache.set(req.url, cachedRequests);
+
+        logger.debug(
+          `[NetworkListener] Cached XHR response for ${req.url}, cache size: ${cachedRequests.length}`,
+        );
+      }
+
+      // 如果有匹配的 callback，调用 callback
+      if (this.requestIds.has(requestId)) {
+        const { pattern } = this.requestIds.get(requestId)!;
         const callback = this.callbacks.get(pattern);
+
         if (typeof callback === "function") {
           callback(parsedResponse, requestBody);
         }
 
-        // 缓存请求结果（所有 XHR 请求都会被缓存，按 URL 存储）
-        const req = this.dumpMap.get(requestId);
-        if (req && req.url) {
-          const cachedRequests = this.requestCache.get(req.url) || [];
-          cachedRequests.push({
-            url: req.url,
-            timestamp: Date.now(),
-            response: parsedResponse,
-            request: requestBody,
-          });
-
-          // 限制缓存大小（LIFO：移除最旧的）
-          if (cachedRequests.length > this.maxCacheSize) {
-            cachedRequests.shift();
-            logger.debug(
-              `[NetworkListener] Cache size exceeded for URL ${req.url}, removed oldest entry`,
-            );
-          }
-
-          this.requestCache.set(req.url, cachedRequests);
-
-          logger.debug(
-            `[NetworkListener] Cached response for ${req.url}, cache size: ${cachedRequests.length}`,
-          );
-        }
-
         // 更新最后时间戳
         this.lastTimestamps.set(pattern, Date.now());
-      } catch (error: any) {
-        logger.error(`Loading finished error: ${error}`, { url: pattern });
-        // 确保即使出现错误也要删除requestId，避免内存泄漏
+      }
+    } catch (error: any) {
+      logger.error(`Loading finished error: ${error}`, { url: req?.url });
+    } finally {
+      // 清理
+      this.dumpMap.delete(requestId);
+      if (this.requestIds.has(requestId)) {
         this.requestIds.delete(requestId);
       }
     }
