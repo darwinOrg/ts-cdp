@@ -88,13 +88,18 @@ export class NetworkListener {
     const pureUrl = getPureUrl(url);
 
     // 检查是否是需要拦截的URL（支持正则表达式）
+    // 只检查 XHR 请求，不检查其他类型的请求
+    if (type !== "XHR") {
+      return;
+    }
+
     for (const [pattern, callback] of this.callbacks) {
       if (typeof callback === "function" && method !== "OPTIONS") {
         // 检查是否匹配（支持正则表达式）
         const regex = new RegExp(pattern);
         const isMatch = regex.test(url);
         logger.debug(
-          `[NetworkListener] Checking URL ${url} against pattern ${pattern}: ${isMatch}`,
+          `[NetworkListener] Checking XHR URL ${url} against pattern ${pattern}: ${isMatch}`,
         );
         if (isMatch) {
           // 检查时间戳：请求时间必须大于上次记录的时间戳

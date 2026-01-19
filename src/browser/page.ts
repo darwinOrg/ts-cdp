@@ -387,6 +387,32 @@ export class BrowserPage {
       // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
       const networkListener = this.cdpClient.getNetworkListener();
       if (networkListener) {
+        // 先检查缓存中是否已经有匹配的请求
+        const cachedRequests = networkListener.getCachedRequests(urlPattern);
+        if (cachedRequests.length > 0) {
+          // 使用最新的缓存请求
+          const latestRequest = cachedRequests[cachedRequests.length - 1];
+          logger.debug(
+            `expectResponseText: found cached request for ${urlOrPredicate}, timestamp: ${new Date(latestRequest.timestamp).toISOString()}`,
+          );
+
+          // 将响应转换为字符串
+          let body: string;
+          if (typeof latestRequest.response === "string") {
+            body = latestRequest.response;
+          } else if (typeof latestRequest.response === "object") {
+            body = JSON.stringify(latestRequest.response);
+          } else {
+            body = String(latestRequest.response);
+          }
+
+          if (body) {
+            resolve(body);
+            return;
+          }
+        }
+
+        // 没有缓存，添加 callback 等待新请求
         networkListener.addCallback(urlPattern, responseCallback);
         logger.debug(
           `expectResponseText: added callback for pattern ${urlPattern}`,
@@ -409,7 +435,7 @@ export class BrowserPage {
           setTimeout(() => {
             if (listenerActive && !listenerCalled) {
               logger.warn(
-                `expectResponseText: no response received within 10 seconds for ${urlOrPredicate}`,
+                `expectResponseText: no response received within 30 seconds for ${urlOrPredicate}`,
               );
               // 清理回调
               if (networkListener) {
@@ -419,7 +445,7 @@ export class BrowserPage {
                 new Error(`Timeout waiting for response: ${urlOrPredicate}`),
               );
             }
-          }, 10000);
+          }, 30000); // 增加到 30 秒
         })
         .catch((err: any) => {
           logger.error(`expectResponseText: callback failed: ${err}`);
