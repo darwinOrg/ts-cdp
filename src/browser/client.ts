@@ -32,6 +32,7 @@ export class CDPClient {
   private reconnectTimer: NodeJS.Timeout | null;
   private disconnectHandler: () => void;
   private readyHandler: () => void;
+  private readyProcessed: boolean; // 标记 ready 事件是否已处理
 
   constructor(
     config: CDPClientConfig,
@@ -58,11 +59,15 @@ export class CDPClient {
     this.connectionCount = 0;
     this.disconnectTime = null;
     this.reconnectTimer = null;
+    this.readyProcessed = false; // 初始化为 false
     
     // 定义事件处理器，避免重复注册
     this.disconnectHandler = () => {
       logger.info(`Disconnected from port ${this.options.port}`);
       this.disconnectTime = Date.now();
+      
+      // 重置 readyProcessed 标志，以便下次重连时能够处理 ready 事件
+      this.readyProcessed = false;
       
       if (this.config.disconnectCallback) {
         this.config.disconnectCallback();
@@ -76,9 +81,9 @@ export class CDPClient {
     };
     
     this.readyHandler = () => {
-      // 防止 ready 事件被多次处理
-      if (!this.isReconnecting && !this.firstConnection) {
-        logger.debug("Ready event fired but not reconnecting, skipping");
+      // 使用 readyProcessed 标志防止重复处理
+      if (this.readyProcessed) {
+        logger.debug("Ready event already processed, skipping");
         return;
       }
 
@@ -99,6 +104,9 @@ export class CDPClient {
           `disconnected for ${timeSinceDisconnect}ms ago)`
         );
       }
+      
+      // 标记 ready 事件已处理
+      this.readyProcessed = true;
       
       // 重置重连计数器
       this.reconnectAttempts = 0;
@@ -185,6 +193,8 @@ export class CDPClient {
 
     this.reconnectAttempts++;
     this.isReconnecting = true;
+    // 重置 readyProcessed 标志，以便重连成功后能够处理 ready 事件
+    this.readyProcessed = false;
 
     // 指数退避：每次重连延迟加倍，最大 30 秒
     const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
