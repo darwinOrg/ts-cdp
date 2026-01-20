@@ -60,6 +60,17 @@ export class CDPClient {
 
   async connect(): Promise<CDP.Client> {
     try {
+      // 如果已经有客户端，先关闭它
+      if (this.client) {
+        logger.debug("Closing existing client before reconnect");
+        try {
+          this.client.close();
+        } catch (error) {
+          logger.debug("Error closing existing client:", error);
+        }
+        this.client = null;
+      }
+
       this.client = await (CDP as any)({
         host: this.options.host!,
         port: this.options.port,
@@ -83,7 +94,10 @@ export class CDPClient {
           this.scheduleReconnect();
         }
         
-        this.client?.close();
+        // 注意：不要在这里调用 this.client.close()
+        // 因为 disconnect 事件通常是因为连接已经断开才触发的
+        // 再次 close 可能会报错或导致问题
+        // 客户端会在下一次 connect 时被重新创建
       });
 
       this.client.on("ready", () => {
@@ -136,6 +150,12 @@ export class CDPClient {
   }
 
   private scheduleReconnect(): void {
+    // 如果已经手动关闭，停止重连
+    if (this.isClosed) {
+      logger.debug("Connection is closed, skipping reconnect");
+      return;
+    }
+
     // 清除之前的重连定时器（去抖动）
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
@@ -163,14 +183,25 @@ export class CDPClient {
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
       
+      // 再次检查是否已经手动关闭
+      if (this.isClosed) {
+        logger.debug("Connection is closed, canceling reconnect attempt");
+        this.isReconnecting = false;
+        return;
+      }
+      
       try {
         logger.info(`Attempting to reconnect (attempt ${this.reconnectAttempts})...`);
         await this.connect();
         logger.info("Reconnect successful!");
       } catch (error) {
         logger.error(`Reconnect attempt ${this.reconnectAttempts} failed:`, error);
-        // 继续尝试重连
-        this.scheduleReconnect();
+        // 继续尝试重连（如果还没有达到最大次数）
+        if (this.reconnectAttempts < this.maxReconnectAttempts && !this.isClosed) {
+          this.scheduleReconnect();
+        } else {
+          this.isReconnecting = false;
+        }
       }
     }, delay);
   }
@@ -193,6 +224,11 @@ export class CDPClient {
         if (error instanceof Error && error.message.includes("WebSocket is not open")) {
           logger.warn("Heartbeat check failed: WebSocket connection is closed");
           // 心跳失败，连接可能已断开，disconnect 事件会触发重连
+          // 但为了保险起见，如果 disconnect 事件没有触发，主动触发重连
+          if (!this.isReconnecting && !this.isClosed) {
+            logger.info("Heartbeat failed, triggering reconnect...");
+            this.scheduleReconnect();
+          }
         } else {
           // 其他错误可能是暂时的，不记录为警告
           logger.debug("Heartbeat check failed (temporary):", error);
