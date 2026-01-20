@@ -83,7 +83,7 @@ export class CDPClient {
     this.readyHandler = () => {
       // 使用 readyProcessed 标志防止重复处理
       if (this.readyProcessed) {
-        logger.debug("Ready event already processed, skipping");
+        // 不记录日志，避免噪音
         return;
       }
 
