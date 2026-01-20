@@ -30,6 +30,8 @@ export class CDPClient {
   private connectionCount: number;
   private disconnectTime: number | null;
   private reconnectTimer: NodeJS.Timeout | null;
+  private disconnectHandler: () => void;
+  private readyHandler: () => void;
 
   constructor(
     config: CDPClientConfig,
@@ -56,6 +58,56 @@ export class CDPClient {
     this.connectionCount = 0;
     this.disconnectTime = null;
     this.reconnectTimer = null;
+    
+    // 定义事件处理器，避免重复注册
+    this.disconnectHandler = () => {
+      logger.info(`Disconnected from port ${this.options.port}`);
+      this.disconnectTime = Date.now();
+      
+      if (this.config.disconnectCallback) {
+        this.config.disconnectCallback();
+      }
+      this.stopHeartbeat();
+      
+      // 如果不是手动关闭，尝试自动重连
+      if (!this.isClosed && !this.isReconnecting) {
+        this.scheduleReconnect();
+      }
+    };
+    
+    this.readyHandler = () => {
+      // 防止 ready 事件被多次处理
+      if (!this.isReconnecting && !this.firstConnection) {
+        logger.debug("Ready event fired but not reconnecting, skipping");
+        return;
+      }
+
+      this.connectionCount++;
+      
+      if (this.firstConnection) {
+        logger.info(`Client ready: ${this.config.name || "unnamed"} (first connection)`);
+        this.firstConnection = false;
+      } else {
+        // 重连成功，记录日志
+        const timeSinceDisconnect = this.disconnectTime 
+          ? Date.now() - this.disconnectTime 
+          : 0;
+        
+        logger.info(
+          `Client reconnected: ${this.config.name || "unnamed"} ` +
+          `(connection #${this.connectionCount}, ` +
+          `disconnected for ${timeSinceDisconnect}ms ago)`
+        );
+      }
+      
+      // 重置重连计数器
+      this.reconnectAttempts = 0;
+      this.isReconnecting = false;
+      this.disconnectTime = null;
+      
+      // 启动心跳检测
+      this.startHeartbeat();
+    };
   }
 
   async connect(): Promise<CDP.Client> {
@@ -64,6 +116,9 @@ export class CDPClient {
       if (this.client) {
         logger.debug("Closing existing client before reconnect");
         try {
+          // 移除旧的事件监听器
+          (this.client as any).removeListener("disconnect", this.disconnectHandler);
+          (this.client as any).removeListener("ready", this.readyHandler);
           this.client.close();
         } catch (error) {
           logger.debug("Error closing existing client:", error);
@@ -80,59 +135,9 @@ export class CDPClient {
         throw new Error("Failed to create CDP client");
       }
 
-      this.client.on("disconnect", () => {
-        logger.info(`Disconnected from port ${this.options.port}`);
-        this.disconnectTime = Date.now();
-        
-        if (this.config.disconnectCallback) {
-          this.config.disconnectCallback();
-        }
-        this.stopHeartbeat();
-        
-        // 如果不是手动关闭，尝试自动重连
-        if (!this.isClosed && !this.isReconnecting) {
-          this.scheduleReconnect();
-        }
-        
-        // 注意：不要在这里调用 this.client.close()
-        // 因为 disconnect 事件通常是因为连接已经断开才触发的
-        // 再次 close 可能会报错或导致问题
-        // 客户端会在下一次 connect 时被重新创建
-      });
-
-      this.client.on("ready", () => {
-        // 防止 ready 事件被多次处理
-        if (!this.isReconnecting && !this.firstConnection) {
-          logger.debug("Ready event fired but not reconnecting, skipping");
-          return;
-        }
-
-        this.connectionCount++;
-        
-        if (this.firstConnection) {
-          logger.info(`Client ready: ${this.config.name || "unnamed"} (first connection)`);
-          this.firstConnection = false;
-        } else {
-          // 重连成功，记录日志
-          const timeSinceDisconnect = this.disconnectTime 
-            ? Date.now() - this.disconnectTime 
-            : 0;
-          
-          logger.info(
-            `Client reconnected: ${this.config.name || "unnamed"} ` +
-            `(connection #${this.connectionCount}, ` +
-            `disconnected for ${timeSinceDisconnect}ms ago)`
-          );
-        }
-        
-        // 重置重连计数器
-        this.reconnectAttempts = 0;
-        this.isReconnecting = false;
-        this.disconnectTime = null;
-        
-        // 启动心跳检测
-        this.startHeartbeat();
-      });
+      // 注册事件监听器（使用预定义的处理器，避免重复）
+      this.client.on("disconnect", this.disconnectHandler);
+      this.client.on("ready", this.readyHandler);
 
       const { Page, DOM, Network, Overlay } = this.client;
       await Promise.all([
