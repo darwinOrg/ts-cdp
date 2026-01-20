@@ -101,6 +101,12 @@ export class CDPClient {
       });
 
       this.client.on("ready", () => {
+        // 防止 ready 事件被多次处理
+        if (!this.isReconnecting && !this.firstConnection) {
+          logger.debug("Ready event fired but not reconnecting, skipping");
+          return;
+        }
+
         this.connectionCount++;
         
         if (this.firstConnection) {
@@ -111,6 +117,7 @@ export class CDPClient {
           const timeSinceDisconnect = this.disconnectTime 
             ? Date.now() - this.disconnectTime 
             : 0;
+          
           logger.info(
             `Client reconnected: ${this.config.name || "unnamed"} ` +
             `(connection #${this.connectionCount}, ` +
@@ -122,6 +129,7 @@ export class CDPClient {
         this.reconnectAttempts = 0;
         this.isReconnecting = false;
         this.disconnectTime = null;
+        
         // 启动心跳检测
         this.startHeartbeat();
       });
@@ -207,11 +215,21 @@ export class CDPClient {
   }
 
   private startHeartbeat(): void {
-    this.stopHeartbeat();
+    // 如果已经有心跳在运行，不要重复启动
+    if (this.heartbeatInterval) {
+      logger.debug("Heartbeat already running, skipping");
+      return;
+    }
     
     this.heartbeatInterval = setInterval(async () => {
       if (!this.client || this.isClosed) {
         this.stopHeartbeat();
+        return;
+      }
+
+      // 如果正在重连，跳过心跳检查
+      if (this.isReconnecting) {
+        logger.debug("Skipping heartbeat check while reconnecting");
         return;
       }
 
