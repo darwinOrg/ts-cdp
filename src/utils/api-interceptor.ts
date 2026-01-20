@@ -1,24 +1,24 @@
-import { CDPClient } from "../browser/client";
-import { createLogger } from "./logger";
-import { getBeijingTimeISOString } from "./url";
+import {CDPClient} from "../browser/client";
+import {createLogger} from "./logger";
+import {getBeijingTimeISOString} from "./url";
 
 const logger = createLogger("ApiInterceptor");
 
 export interface InterceptOptions {
-  timeout?: number; // 超时时间（毫秒）
-  maxAttempts?: number; // 最大尝试次数
-  triggerAction?: () => Promise<void>; // 触发 API 请求的操作
+    timeout?: number; // 超时时间（毫秒）
+    maxAttempts?: number; // 最大尝试次数
+    triggerAction?: () => Promise<void>; // 触发 API 请求的操作
 }
 
 export interface InterceptResult {
-  success: boolean;
-  data?: string; // JSON 字符串格式的数据
-  error?: string;
-  metadata?: {
-    timestamp: string;
-    attemptCount: number;
-    requestUrl: string;
-  };
+    success: boolean;
+    data?: string; // JSON 字符串格式的数据
+    error?: string;
+    metadata?: {
+        timestamp: string;
+        attemptCount: number;
+        requestUrl: string;
+    };
 }
 
 /**
@@ -48,129 +48,129 @@ export interface InterceptResult {
  * ```
  */
 export async function interceptApiData(
-  client: CDPClient,
-  apiUrl: string,
-  options: InterceptOptions = {},
+    client: CDPClient,
+    apiUrl: string,
+    options: InterceptOptions = {},
 ): Promise<InterceptResult> {
-  const { timeout = 10000, maxAttempts = 5, triggerAction } = options;
+    const {timeout = 10000, maxAttempts = 5, triggerAction} = options;
 
-  let latestData: any = null;
-  let attemptCount = 0;
-  let isResolved = false;
+    let latestData: any = null;
+    let attemptCount = 0;
+    let isResolved = false;
 
-  const startTime = Date.now();
+    const startTime = Date.now();
 
-  try {
-    logger.info(`开始拦截 API: ${apiUrl}`);
-    logger.debug(`配置: timeout=${timeout}ms, maxAttempts=${maxAttempts}`);
+    try {
+        logger.info(`开始拦截 API: ${apiUrl}`);
+        logger.debug(`配置: timeout=${timeout}ms, maxAttempts=${maxAttempts}`);
 
-    // 设置拦截回调
-    client.addNetworkCallback(apiUrl, (response: any, request?: string) => {
-      if (isResolved) return;
+        // 设置拦截回调
+        client.addNetworkCallback(apiUrl, (response: any, request?: string) => {
+            if (isResolved) return;
 
-      attemptCount++;
-      logger.debug(`拦截到第 ${attemptCount} 次请求`);
+            attemptCount++;
+            logger.debug(`拦截到第 ${attemptCount} 次请求`);
 
-      // 只保存最新的数据
-      latestData = {
-        timestamp: getBeijingTimeISOString(),
-        attemptCount,
-        request,
-        response,
-      };
+            // 只保存最新的数据
+            latestData = {
+                timestamp: getBeijingTimeISOString(),
+                attemptCount,
+                request,
+                response,
+            };
 
-      logger.debug(`已更新最新数据缓存 (尝试次数: ${attemptCount})`);
-    });
+            logger.debug(`已更新最新数据缓存 (尝试次数: ${attemptCount})`);
+        });
 
-    // 执行触发操作（如果提供）
-    if (triggerAction) {
-      logger.debug("执行触发操作...");
-      await triggerAction();
-    }
+        // 执行触发操作（如果提供）
+        if (triggerAction) {
+            logger.debug("执行触发操作...");
+            await triggerAction();
+        }
 
-    // 等待拦截数据或超时
-    await new Promise<void>((resolve, reject) => {
-      const checkInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
+        // 等待拦截数据或超时
+        await new Promise<void>((resolve, reject) => {
+            const checkInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+
+                // 检查是否成功拦截到数据
+                if (latestData) {
+                    clearInterval(checkInterval);
+                    isResolved = true;
+                    resolve();
+                    return;
+                }
+
+                // 检查是否超时
+                if (elapsed >= timeout) {
+                    clearInterval(checkInterval);
+                    isResolved = true;
+                    reject(new Error(`拦截超时: ${timeout}ms 内未捕获到数据`));
+                    return;
+                }
+
+                // 检查是否达到最大尝试次数
+                if (attemptCount >= maxAttempts) {
+                    clearInterval(checkInterval);
+                    isResolved = true;
+                    resolve();
+                    return;
+                }
+            }, 100);
+        });
+
+        // 移除拦截回调
+        client.removeNetworkCallback(apiUrl);
 
         // 检查是否成功拦截到数据
-        if (latestData) {
-          clearInterval(checkInterval);
-          isResolved = true;
-          resolve();
-          return;
+        if (!latestData) {
+            return {
+                success: false,
+                error: `未拦截到数据 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
+                metadata: {
+                    timestamp: getBeijingTimeISOString(),
+                    attemptCount,
+                    requestUrl: apiUrl,
+                },
+            };
         }
 
-        // 检查是否超时
-        if (elapsed >= timeout) {
-          clearInterval(checkInterval);
-          isResolved = true;
-          reject(new Error(`拦截超时: ${timeout}ms 内未捕获到数据`));
-          return;
+        // 返回成功结果
+        const result: InterceptResult = {
+            success: true,
+            data: JSON.stringify(latestData, null, 2),
+            metadata: {
+                timestamp: latestData.timestamp,
+                attemptCount: latestData.attemptCount,
+                requestUrl: apiUrl,
+            },
+        };
+
+        logger.info(
+            `拦截成功 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
+        );
+        return result;
+    } catch (error: any) {
+        // 移除拦截回调
+        try {
+            client.removeNetworkCallback(apiUrl);
+        } catch (e) {
+            // 忽略移除回调的错误
         }
 
-        // 检查是否达到最大尝试次数
-        if (attemptCount >= maxAttempts) {
-          clearInterval(checkInterval);
-          isResolved = true;
-          resolve();
-          return;
-        }
-      }, 100);
-    });
+        const errorMessage = error.message || String(error);
+        logger.error(`拦截失败: ${errorMessage}`);
 
-    // 移除拦截回调
-    client.removeNetworkCallback(apiUrl);
-
-    // 检查是否成功拦截到数据
-    if (!latestData) {
-      return {
-        success: false,
-        error: `未拦截到数据 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
-        metadata: {
-          timestamp: getBeijingTimeISOString(),
-          attemptCount,
-          requestUrl: apiUrl,
-        },
-      };
+        return {
+            success: false,
+            error: errorMessage,
+            metadata: {
+                timestamp: getBeijingTimeISOString(),
+                attemptCount,
+                requestUrl: apiUrl,
+            },
+        };
     }
-
-    // 返回成功结果
-    const result: InterceptResult = {
-      success: true,
-      data: JSON.stringify(latestData, null, 2),
-      metadata: {
-        timestamp: latestData.timestamp,
-        attemptCount: latestData.attemptCount,
-        requestUrl: apiUrl,
-      },
-    };
-
-    logger.info(
-      `拦截成功 (尝试次数: ${attemptCount}, 耗时: ${Date.now() - startTime}ms)`,
-    );
-    return result;
-  } catch (error: any) {
-    // 移除拦截回调
-    try {
-      client.removeNetworkCallback(apiUrl);
-    } catch (e) {
-      // 忽略移除回调的错误
-    }
-
-    const errorMessage = error.message || String(error);
-    logger.error(`拦截失败: ${errorMessage}`);
-
-    return {
-      success: false,
-      error: errorMessage,
-      metadata: {
-        timestamp: getBeijingTimeISOString(),
-        attemptCount,
-        requestUrl: apiUrl,
-      },
-    };
-  }
 }
 
 /**
@@ -201,26 +201,26 @@ export async function interceptApiData(
  * ```
  */
 export async function interceptMultipleApis(
-  client: CDPClient,
-  apiUrls: string[],
-  options: InterceptOptions = {},
+    client: CDPClient,
+    apiUrls: string[],
+    options: InterceptOptions = {},
 ): Promise<Map<string, InterceptResult>> {
-  const results = new Map<string, InterceptResult>();
+    const results = new Map<string, InterceptResult>();
 
-  logger.info(`开始批量拦截 ${apiUrls.length} 个 API`);
+    logger.info(`开始批量拦截 ${apiUrls.length} 个 API`);
 
-  // 并发拦截所有 API
-  const promises = apiUrls.map(async (url) => {
-    const result = await interceptApiData(client, url, options);
-    results.set(url, result);
-  });
+    // 并发拦截所有 API
+    const promises = apiUrls.map(async (url) => {
+        const result = await interceptApiData(client, url, options);
+        results.set(url, result);
+    });
 
-  await Promise.all(promises);
+    await Promise.all(promises);
 
-  const successCount = Array.from(results.values()).filter(
-    (r) => r.success,
-  ).length;
-  logger.info(`批量拦截完成: ${successCount}/${apiUrls.length} 成功`);
+    const successCount = Array.from(results.values()).filter(
+        (r) => r.success,
+    ).length;
+    logger.info(`批量拦截完成: ${successCount}/${apiUrls.length} 成功`);
 
-  return results;
+    return results;
 }

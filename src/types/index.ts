@@ -1,71 +1,71 @@
 export interface CDPClientOptions {
-  host?: string;
-  port: number;
-  enableDomains?: string[];
+    host?: string;
+    port: number;
+    enableDomains?: string[];
 }
 
 export interface InterceptOptions {
-  timeout?: number;
-  maxAttempts?: number;
-  triggerAction?: () => Promise<void>;
+    timeout?: number;
+    maxAttempts?: number;
+    triggerAction?: () => Promise<void>;
 }
 
 export interface InterceptResult {
-  success: boolean;
-  data?: string;
-  error?: string;
-  metadata?: {
-    timestamp: string;
-    attemptCount: number;
-    requestUrl: string;
-  };
+    success: boolean;
+    data?: string;
+    error?: string;
+    metadata?: {
+        timestamp: string;
+        attemptCount: number;
+        requestUrl: string;
+    };
 }
 
 export interface NetworkRequestInfo {
-  requestId: string;
-  url: string;
-  method: string;
-  headers?: Record<string, string>;
-  type?: string;
-  timestamp: number;
+    requestId: string;
+    url: string;
+    method: string;
+    headers?: Record<string, string>;
+    type?: string;
+    timestamp: number;
 }
 
 export interface NetworkResponseInfo {
-  requestId: string;
-  url: string;
-  status: number;
-  statusText: string;
-  mimeType: string;
-  headers?: Record<string, string>;
-  timestamp: number;
-  body?: string;
-}
-
-export interface HARLogEntry {
-  startedDateTime: string;
-  time: number;
-  request: {
-    method: string;
+    requestId: string;
     url: string;
-    headers?: Record<string, string>;
-  };
-  response: {
     status: number;
     statusText: string;
     mimeType: string;
-    text: string;
-  };
+    headers?: Record<string, string>;
+    timestamp: number;
+    body?: string;
+}
+
+export interface HARLogEntry {
+    startedDateTime: string;
+    time: number;
+    request: {
+        method: string;
+        url: string;
+        headers?: Record<string, string>;
+    };
+    response: {
+        status: number;
+        statusText: string;
+        mimeType: string;
+        text: string;
+    };
 }
 
 export interface HAR {
-  log: {
-    version: string;
-    creator: {
-      name: string;
-      version: string;
+    log: {
+        version: string;
+        creator: {
+            name: string;
+            version: string;
+        };
+        entries: HARLogEntry[];
     };
-    entries: HARLogEntry[];
-  };
 }
 
 export type NetworkCallback = (response: any, request?: string) => void;
@@ -73,40 +73,40 @@ export type NetworkCallback = (response: any, request?: string) => void;
 export type LoginState = "login" | "logout";
 
 export interface LoginCallback {
-  (state: LoginState): void;
+    (state: LoginState): void;
 }
 
 export interface DisconnectCallback {
-  (): void;
+    (): void;
 }
 
 export interface CDPClientConfig {
-  uid?: number;
-  port: number;
-  name?: string;
-  disconnectCallback?: DisconnectCallback;
-  loginCallback?: LoginCallback;
-  watchUrls?: string[];
-  loginUrlPatterns?: {
-    loginUrl: string;
-    targetPrefix: string;
-  };
+    uid?: number;
+    port: number;
+    name?: string;
+    disconnectCallback?: DisconnectCallback;
+    loginCallback?: LoginCallback;
+    watchUrls?: string[];
+    loginUrlPatterns?: {
+        loginUrl: string;
+        targetPrefix: string;
+    };
 }
 
 export interface NetworkListenerConfig {
-  watchUrls?: string[];
-  enableHAR?: boolean;
-  maxCacheSize?: number;
+    watchUrls?: string[];
+    enableHAR?: boolean;
+    maxCacheSize?: number;
 }
 
 export interface RequestData {
-  pattern: string;
-  params: number;
+    pattern: string;
+    params: number;
 }
 
 export interface CachedRequest {
-  url: string;
-  timestamp: number;
-  response: any;
-  request?: string;
+    url: string;
+    timestamp: number;
+    response: any;
+    request?: string;
 }

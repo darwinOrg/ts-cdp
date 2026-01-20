@@ -1,21 +1,21 @@
-export { CDPClient } from "./browser/client";
-export { BrowserPage, BrowserLocator } from "./browser/page";
-export { NetworkListener } from "./network/listener";
+export {CDPClient} from "./browser/client";
+export {BrowserPage, BrowserLocator} from "./browser/page";
+export {NetworkListener} from "./network/listener";
 export {
-  Launcher,
-  launch,
-  getChromePath,
-  LaunchOptions,
-  ChromeInstance,
+    Launcher,
+    launch,
+    getChromePath,
+    LaunchOptions,
+    ChromeInstance,
 } from "./launcher";
-export { createLogger, Logger, LogLevel } from "./utils/logger";
-export { getPureUrl, isWatchedUrl, normalizeUrl } from "./utils/url";
+export {createLogger, Logger, LogLevel} from "./utils/logger";
+export {getPureUrl, isWatchedUrl, normalizeUrl} from "./utils/url";
 export {
-  interceptApiData,
-  interceptMultipleApis,
+    interceptApiData,
+    interceptMultipleApis,
 } from "./utils/api-interceptor";
 export {
-  getAntiDetectScript,
-  injectAntiDetectScript,
+    getAntiDetectScript,
+    injectAntiDetectScript,
 } from "./utils/anti-detect";
 export * from "./types";
