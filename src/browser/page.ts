@@ -115,41 +115,57 @@ export class BrowserPage {
     );
 
     return new Promise((resolve, reject) => {
+      let readyStateChecked = false;
+      let checkCount = 0;
+
       const checkState = async () => {
         if (Date.now() - startTime > timeoutMs) {
           reject(new Error(`Timeout waiting for ${state}`));
           return;
         }
 
+        checkCount++;
+        
         try {
-          // 使用 Runtime.evaluate 检查 document.readyState
-          const result = await this.runtime?.evaluate({
-            expression: `document.readyState`,
-          });
+          // 只在第一次和每 3 秒检查一次 document.readyState
+          // 其他时间使用简单的延迟，减少对 Runtime.evaluate 的调用
+          if (!readyStateChecked || checkCount % 6 === 0) {
+            readyStateChecked = true;
+            
+            const result = await this.runtime?.evaluate({
+              expression: `document.readyState`,
+            });
 
-          const readyState = result?.result?.value;
-          logger.info(
-            `waitForLoadState: state=${state}, readyState=${readyState}, waiting for ${state}`,
-          );
-
-          if (
-            state === "domcontentloaded" &&
-            (readyState === "interactive" || readyState === "complete")
-          ) {
-            logger.info(`waitForLoadState: resolving for domcontentloaded`);
-            resolve();
-          } else if (state === "load" && readyState === "complete") {
-            logger.info(
-              `waitForLoadState: resolving for load, readyState=${readyState}`,
+            const readyState = result?.result?.value;
+            
+            if (
+              state === "domcontentloaded" &&
+              (readyState === "interactive" || readyState === "complete")
+            ) {
+              logger.info(`waitForLoadState: resolving for domcontentloaded`);
+              resolve();
+              return;
+            } else if (state === "load" && readyState === "complete") {
+              logger.info(
+                `waitForLoadState: resolving for load, readyState=${readyState}`,
+              );
+              resolve();
+              return;
+            } else if (state === "networkidle") {
+              // 简化的 networkidle 检查
+              resolve();
+              return;
+            }
+            
+            logger.debug(
+              `waitForLoadState: state=${state}, readyState=${readyState}, waiting...`
             );
-            resolve();
-          } else if (state === "networkidle") {
-            // 简化的 networkidle 检查
-            resolve();
           } else {
-            logger.info(`waitForLoadState: not ready yet, waiting...`);
-            setTimeout(checkState, 500);
+            logger.debug(`waitForLoadState: waiting... (check #${checkCount})`);
           }
+          
+          // 继续等待
+          setTimeout(checkState, 500);
         } catch (error) {
           logger.warn(`waitForLoadState: error checking readyState: ${error}`);
           setTimeout(checkState, 500);
