@@ -1,12 +1,12 @@
 import { launch, CDPClient, interceptApiData, interceptMultipleApis } from '../src';
+import { injectAntiDetectScript } from '../src/utils/anti-detect';
 import * as fs from 'fs';
 
 async function example1_SingleApi() {
   console.log('=== 示例 1: 拦截单个 API ===\n');
 
   const chrome = await launch({
-    headless: false,
-    chromeFlags: ['--disable-blink-features=AutomationControlled']
+    headless: false
   });
 
   try {
@@ -17,10 +17,7 @@ async function example1_SingleApi() {
     await client.connect();
 
     // 注入反检测脚本
-    await client.executeScript(`
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = { runtime: {} };
-    `);
+    await injectAntiDetectScript(client);
 
     // 使用通用方法拦截 API
     const result = await interceptApiData(
@@ -67,8 +64,7 @@ async function example2_MultipleApis() {
   console.log('\n\n=== 示例 2: 批量拦截多个 API ===\n');
 
   const chrome = await launch({
-    headless: false,
-    chromeFlags: ['--disable-blink-features=AutomationControlled']
+    headless: false
   });
 
   try {
@@ -79,10 +75,7 @@ async function example2_MultipleApis() {
     await client.connect();
 
     // 注入反检测脚本
-    await client.executeScript(`
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = { runtime: {} };
-    `);
+    await injectAntiDetectScript(client);
 
     // 定义要拦截的 API 列表
     const apiUrls = [
@@ -141,8 +134,7 @@ async function example3_WithErrorHandling() {
   console.log('\n\n=== 示例 3: 完整的错误处理 ===\n');
 
   const chrome = await launch({
-    headless: false,
-    chromeFlags: ['--disable-blink-features=AutomationControlled']
+    headless: false
   });
 
   try {
@@ -153,10 +145,7 @@ async function example3_WithErrorHandling() {
     await client.connect();
 
     // 注入反检测脚本
-    await client.executeScript(`
-      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-      window.chrome = { runtime: {} };
-    `);
+    await injectAntiDetectScript(client);
 
     // 测试不存在的 API（应该失败）
     const result = await interceptApiData(

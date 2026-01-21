@@ -1,277 +1,474 @@
-# ts-cdp
+# Browser Automation HTTP Server
 
-一个用于 Chrome DevTools Protocol (CDP) 操作的 TypeScript 库，提供了简洁的 API 来控制 Chrome 浏览器、监控网络请求、追踪登录状态等功能。
+基于 Chrome DevTools Protocol (CDP) 的浏览器自动化 HTTP API 服务器。
 
-## 特性
+## 功能特性
 
-- 🚀 简单易用的 TypeScript API
-- 🌐 网络请求监控和拦截
-- 🔐 登录状态自动检测
-- 📊 HAR (HTTP Archive) 日志生成
-- 📸 页面截图
-- 🎯 JavaScript 执行
-- 🔄 DOM 操作和提取
-- 💻 跨平台支持 (macOS, Windows, Linux)
+### 浏览器管理
+- 启动/停止浏览器
+- 连接到现有浏览器
+- 管理浏览器会话
 
-## 安装
+### 页面操作
+- 导航到 URL
+- 刷新页面
+- 执行 JavaScript
+- 获取页面标题和 URL
+- 截图
+- 等待加载状态
+- 等待元素出现
+- 获取页面 HTML
+
+### 元素定位
+- 检查元素是否存在
+- 获取元素文本
+- 获取元素属性
+- 点击元素
+- 鼠标悬停
+- 设置元素值
+- 检查元素可见性
+- 获取所有匹配元素
+
+## 启动服务器
 
 ```bash
-npm install
+npm run server
 ```
 
-## 快速开始
+服务器将在 `http://localhost:3000` 启动。
 
-### 基础使用
+## API 端点
 
-```typescript
-import { launch, CDPClient } from './src';
+### 浏览器管理
 
-async function main() {
-  // 启动 Chrome
-  const chrome = await launch({
-    headless: false,
-    startingUrl: 'https://example.com'
-  });
+#### 启动浏览器
+```bash
+POST /api/browser/start
+Content-Type: application/json
 
-  try {
-    // 连接到 CDP
-    const client = new CDPClient({
-      port: chrome.port,
-      name: 'my-client'
-    });
-    await client.connect();
-
-    // 导航到页面
-    await client.navigate('https://example.com');
-
-    // 执行 JavaScript
-    const title = await client.executeScript('document.title');
-    console.log('Page title:', title);
-
-    // 截图
-    const screenshot = await client.screenshot('png');
-    // 保存截图...
-  } finally {
-    // 清理
-    await client.close();
-    chrome.kill();
-  }
-}
-
-main().catch(console.error);
-```
-
-### 网络监控
-
-```typescript
-import { launch, CDPClient } from './src';
-
-async function main() {
-  const chrome = await launch({ headless: false });
-  const client = new CDPClient({
-    port: chrome.port,
-    watchUrls: [
-      'https://api.example.com/data',
-      'https://api.example.com/user'
-    ]
-  });
-  await client.connect();
-
-  // 添加网络请求回调
-  client.addNetworkCallback('https://api.example.com/data', (response, request) => {
-    console.log('API Response:', response);
-    console.log('Request body:', request);
-  });
-
-  // 导航到页面触发请求
-  await client.navigate('https://example.com');
-
-  // 获取 HAR 日志
-  const har = client.getHAR();
-  console.log('Total requests:', har.log.entries.length);
-
-  await client.close();
-  chrome.kill();
-}
-
-main().catch(console.error);
-```
-
-### 登录状态监控
-
-```typescript
-import { launch, CDPClient } from './src';
-
-async function main() {
-  const chrome = await launch({ headless: false });
-  const client = new CDPClient({
-    port: chrome.port,
-    loginCallback: (state) => {
-      console.log(`Login state: ${state}`);
-    },
-    loginUrlPatterns: {
-      loginUrl: 'https://example.com/login',
-      targetPrefix: 'https://example.com'
-    }
-  });
-  await client.connect();
-
-  // 自动监控登录/登出状态
-  await client.navigate('https://example.com');
-
-  await client.close();
-  chrome.kill();
-}
-
-main().catch(console.error);
-```
-
-## API 文档
-
-### Launcher
-
-#### `launch(options: LaunchOptions): Promise<ChromeInstance>`
-
-启动 Chrome 浏览器实例。
-
-**参数:**
-- `options.chromePath?: string` - Chrome 可执行文件路径
-- `options.chromeFlags?: string[]` - Chrome 启动参数
-- `options.userDataDir?: string | false` - 用户数据目录
-- `options.port?: number` - 调试端口 (0 表示自动分配)
-- `options.startingUrl?: string` - 起始 URL
-- `options.headless?: boolean` - 是否无头模式
-- `options.ignoreDefaultFlags?: boolean` - 是否忽略默认参数
-- `options.prefs?: Record<string, any>` - 浏览器偏好设置
-- `options.envVars?: Record<string, string>` - 环境变量
-
-**返回:** `Promise<ChromeInstance>`
-```typescript
 {
-  pid: number;
-  port: number;
-  kill: () => void;
-  process: ChildProcess;
+  "sessionId": "session-123",
+  "headless": false
 }
 ```
 
-### CDPClient
-
-#### `constructor(config: CDPClientConfig)`
-
-创建 CDP 客户端实例。
-
-**参数:**
-- `config.port: number` - Chrome 调试端口
-- `config.name?: string` - 客户端名称
-- `config.watchUrls?: string[]` - 要监控的 URL 列表
-- `config.loginCallback?: (state: 'login' | 'logout') => void` - 登录状态回调
-- `config.loginUrlPatterns?: { loginUrl: string; targetPrefix: string }` - 登录 URL 模式
-- `config.disconnectCallback?: () => void` - 断开连接回调
-
-#### `connect(): Promise<CDP.Client>`
-
-连接到 Chrome DevTools Protocol。
-
-#### `navigate(url: string): Promise<void>`
-
-导航到指定 URL。
-
-#### `reload(): Promise<void>`
-
-重新加载当前页面。
-
-#### `executeScript(script: string): Promise<any>`
-
-在页面上下文中执行 JavaScript 代码。
-
-#### `getDOM(): Promise<string>`
-
-获取完整的页面 HTML。
-
-#### `screenshot(format?: 'png' | 'jpeg', quality?: number): Promise<string>`
-
-截取页面截图，返回 base64 编码的图片数据。
-
-#### `addNetworkCallback(url: string, callback: (response: any, request?: string) => void): void`
-
-添加网络请求回调函数。
-
-#### `removeNetworkCallback(url: string): void`
-
-移除网络请求回调函数。
-
-#### `getHAR(): HAR`
-
-获取 HAR 日志对象。
-
-#### `close(): Promise<void>`
-
-关闭客户端连接。
-
-#### `isConnected(): boolean`
-
-检查客户端是否已连接。
-
-## 示例
-
-项目包含以下示例代码：
-
-- `examples/basic-usage.ts` - 基础使用示例
-- `examples/network-monitoring.ts` - 网络监控示例
-- `examples/login-monitoring.ts` - 登录状态监控示例
-
-运行示例：
-
+#### 关闭浏览器
 ```bash
-npm run example
+POST /api/browser/stop
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
 ```
 
-## 项目结构
+### 页面操作
 
-```
-ts-cdp/
-├── src/
-│   ├── browser/
-│   │   └── client.ts          # CDP 客户端核心
-│   ├── network/
-│   │   └── listener.ts        # 网络监听器
-│   ├── launcher/
-│   │   ├── index.ts           # Chrome 启动器
-│   │   └── chrome-finder.ts   # Chrome 路径查找
-│   ├── types/
-│   │   └── index.ts           # TypeScript 类型定义
-│   ├── utils/
-│   │   ├── logger.ts          # 日志工具
-│   │   └── url.ts             # URL 工具
-│   └── index.ts               # 主入口
-├── examples/                  # 示例代码
-├── package.json
-├── tsconfig.json
-└── README.md
-```
-
-## 构建
-
+#### 导航到 URL
 ```bash
-npm run build
+POST /api/page/navigate
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "url": "https://example.com"
+}
 ```
 
-## 开发
-
+#### 刷新页面
 ```bash
-npm run dev
+POST /api/page/reload
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
 ```
 
-## 依赖
+#### 执行 JavaScript
+```bash
+POST /api/page/execute
+Content-Type: application/json
 
-- `chrome-remote-interface` - Chrome DevTools Protocol 客户端
-- TypeScript 5.0+
+{
+  "sessionId": "session-123",
+  "script": "document.title"
+}
+```
 
-## 许可证
+#### 获取页面标题
+```bash
+GET /api/page/title?sessionId=session-123
+```
 
-MIT
+#### 获取页面 URL
+```bash
+GET /api/page/url?sessionId=session-123
+```
 
-## 贡献
+#### 获取页面 HTML
+```bash
+GET /api/page/html?sessionId=session-123
+```
 
-欢迎提交 Issue 和 Pull Request！
+#### 截图
+```bash
+POST /api/page/screenshot
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "format": "png"
+}
+```
+
+#### 带加载状态的导航
+```bash
+POST /api/page/navigate-with-loaded-state
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "url": "https://example.com"
+}
+```
+
+#### 带加载状态的刷新
+```bash
+POST /api/page/reload-with-loaded-state
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
+```
+
+#### 等待加载状态 load
+```bash
+POST /api/page/wait-for-load-state-load
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
+```
+
+#### 等待 DOM 内容加载
+```bash
+POST /api/page/wait-for-dom-content-loaded
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
+```
+
+#### 等待选择器可见
+```bash
+POST /api/page/wait-for-selector-visible
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "h1"
+}
+```
+
+#### 期望响应文本
+```bash
+POST /api/page/expect-response-text
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "urlOrPredicate": "https://api.example.com/data",
+  "callback": "document.querySelector('#load').click()"
+}
+```
+
+#### 获取内部文本
+```bash
+POST /api/page/inner-text
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "h1"
+}
+```
+
+#### 获取文本内容
+```bash
+POST /api/page/text-content
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "h1"
+}
+```
+
+#### 关闭页面
+```bash
+POST /api/page/close
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
+```
+
+### 元素操作
+
+#### 检查元素是否存在
+```bash
+POST /api/element/exists
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "h1"
+}
+```
+
+#### 获取元素文本
+```bash
+POST /api/element/text
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "h1"
+}
+```
+
+#### 点击元素
+```bash
+POST /api/element/click
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "#submit-button"
+}
+```
+
+#### 鼠标悬停
+```bash
+POST /api/element/hover
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "#menu-item"
+}
+```
+
+#### 设置元素值
+```bash
+POST /api/element/setValue
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "#username",
+  "value": "testuser"
+}
+```
+
+#### 等待元素
+```bash
+POST /api/element/wait
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "#result",
+  "timeout": 10000
+}
+```
+
+#### 获取元素属性
+```bash
+POST /api/element/attribute
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": "#link",
+  "attribute": "href"
+}
+```
+
+#### 获取所有匹配元素的文本
+```bash
+POST /api/element/all-texts
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": ".item"
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "texts": ["Item 1", "Item 2", "Item 3"]
+}
+```
+
+#### 获取所有匹配元素的属性
+```bash
+POST /api/element/all-attributes
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": ".item",
+  "attribute": "href"
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "attributes": ["url1", "url2", "url3"]
+}
+```
+
+#### 获取元素数量
+```bash
+POST /api/element/count
+Content-Type: application/json
+
+{
+  "sessionId": "session-123",
+  "selector": ".item"
+}
+```
+
+**响应:**
+```json
+{
+  "success": true,
+  "count": 3
+}
+```
+
+### 会话管理
+
+#### 获取所有会话
+```bash
+GET /api/sessions
+```
+
+#### 健康检查
+```bash
+GET /health
+```
+
+## 使用示例
+
+### 启动浏览器并导航
+```bash
+# 1. 启动浏览器
+curl -X POST http://localhost:3000/api/browser/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "headless": false
+  }'
+
+# 2. 导航到页面
+curl -X POST http://localhost:3000/api/page/navigate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "url": "https://example.com"
+  }'
+
+# 3. 获取页面标题
+curl http://localhost:3000/api/page/title?sessionId=test-session
+
+# 4. 截图
+curl -X POST http://localhost:3000/api/page/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "format": "png"
+  }'
+
+# 5. 关闭浏览器
+curl -X POST http://localhost:3000/api/browser/stop \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session"
+  }'
+```
+
+### 元素操作示例
+```bash
+# 检查元素是否存在
+curl -X POST http://localhost:3000/api/element/exists \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "selector": "h1"
+  }'
+
+# 获取元素文本
+curl -X POST http://localhost:3000/api/element/text \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "selector": "h1"
+  }'
+
+# 点击元素
+curl -X POST http://localhost:3000/api/element/click \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "selector": "#submit-button"
+  }'
+
+# 设置输入框值
+curl -X POST http://localhost:3000/api/element/setValue \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "test-session",
+    "selector": "#username",
+    "value": "testuser"
+  }'
+```
+
+## 响应格式
+
+所有 API 响应都使用统一的 JSON 格式：
+
+### 成功响应
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+### 错误响应
+```json
+{
+  "success": false,
+  "error": "Error message"
+}
+```
+
+## 注意事项
+
+1. **会话管理**: 每个浏览器实例都有一个唯一的 `sessionId`，所有操作都需要提供 `sessionId`
+2. **单页面模式**: 当前版本为单页面模式，每个会话只有一个默认页面
+3. **资源清理**: 使用完毕后记得调用 `/api/browser/stop` 关闭浏览器
+4. **超时处理**: 大多数操作都有默认超时时间（10秒），可以通过参数自定义
+5. **错误处理**: 所有错误都会返回 JSON 格式的错误信息
