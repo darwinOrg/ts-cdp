@@ -96,6 +96,10 @@ export class NetworkListener {
         const {url, method} = request;
         const pureUrl = getPureUrl(url);
 
+        logger.debug(
+            `[NetworkListener] RequestWillBeSent: ${type} ${method} ${url} (requestId: ${requestId})`,
+        );
+
         // 检查是否是需要拦截的URL（支持正则表达式）
         for (const [pattern, callback] of this.callbacks) {
             if (typeof callback === "function" && method !== "OPTIONS") {
@@ -348,12 +352,26 @@ export class NetworkListener {
                 const {pattern} = this.requestIds.get(requestId)!;
                 const callback = this.callbacks.get(pattern);
 
+                logger.debug(
+                    `[NetworkListener] Found callback for requestId ${requestId}, pattern: ${pattern}`,
+                );
+
                 if (typeof callback === "function") {
+                    logger.debug(
+                        `[NetworkListener] Calling callback for pattern ${pattern}`,
+                    );
                     callback(parsedResponse, requestBody);
+                    logger.debug(
+                        `[NetworkListener] Callback completed for pattern ${pattern}`,
+                    );
                 }
 
                 // 更新最后时间戳
                 this.lastTimestamps.set(pattern, Date.now());
+            } else {
+                logger.debug(
+                    `[NetworkListener] No callback found for requestId ${requestId}`,
+                );
             }
         } catch (error: any) {
             logger.error(`Loading finished error: ${error}`, {url: req?.url});

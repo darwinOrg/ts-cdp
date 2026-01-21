@@ -578,6 +578,16 @@ export class BrowserPage {
                             logger.warn(
                                 `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
                             );
+                            // 打印调试信息
+                            if (networkListener) {
+                                const cacheStats = networkListener.getCacheStats();
+                                logger.debug(
+                                    `expectResponseText: cache stats at timeout: ${cacheStats.size} cached URLs`,
+                                );
+                                for (const [url] of cacheStats) {
+                                    logger.debug(`  Cached URL: ${url}`);
+                                }
+                            }
                             // 清理回调
                             if (networkListener) {
                                 networkListener.removeCallback(urlPattern);
