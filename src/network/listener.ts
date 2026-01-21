@@ -273,10 +273,7 @@ export class NetworkListener {
                     });
                     requestBody = requestPostData.postData;
                 } catch (requestError) {
-                    logger.debug(
-                        `Could not get request body for ${req.method} request ${requestId}:`,
-                        requestError,
-                    );
+                    // 静默处理：某些 POST 请求可能没有请求体数据，这是正常情况
                 }
             }
 

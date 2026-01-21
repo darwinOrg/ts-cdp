@@ -481,6 +481,14 @@ export class BrowserPage {
             // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
             const networkListener = this.cdpClient.getNetworkListener();
             if (networkListener) {
+                // 启用网络监听器（确保监听器处于启用状态）
+                if (!networkListener.isEnabled()) {
+                    networkListener.enable();
+                    logger.debug(
+                        `expectResponseText: enabled network listener`,
+                    );
+                }
+
                 // 先检查缓存中是否已经有匹配的请求
                 // 遍历所有缓存的 URL，找到匹配的请求
                 const cacheStats = networkListener.getCacheStats();
