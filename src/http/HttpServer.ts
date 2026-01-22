@@ -186,21 +186,12 @@ export class BrowserHttpServer {
         // 启用网络监听
         this.app.post("/api/network/enable", async (req: Request, res: Response) => {
             try {
-                const {sessionId, urlPatterns = []} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                const session = this.clients.get(sessionId);
+                const session = this.validateSessionOnly(req, res);
                 if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
                     return;
                 }
 
+                const {urlPatterns = []} = req.body;
                 const networkListener = session.client.getNetworkListener();
                 if (networkListener) {
                     networkListener.enable(urlPatterns);
@@ -248,21 +239,12 @@ export class BrowserHttpServer {
         // 获取网络监听器状态
         this.app.get("/api/network/status", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.query;
-
-                if (!sessionId || typeof sessionId !== 'string') {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
+                const result = this.validateSessionFromQuery(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
+                const {session} = result;
                 const networkListener = session.client.getNetworkListener();
                 if (networkListener) {
                     const cacheStats = networkListener.getCacheStats();
@@ -290,21 +272,12 @@ export class BrowserHttpServer {
         // 清除网络监听器缓存
         this.app.post("/api/network/clear-cache", async (req: Request, res: Response) => {
             try {
-                const {sessionId, pattern} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                const session = this.clients.get(sessionId);
+                const session = this.validateSessionOnly(req, res);
                 if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
                     return;
                 }
 
+                const {pattern} = req.body;
                 const networkListener = session.client.getNetworkListener();
                 if (networkListener) {
                     networkListener.clearCache(pattern);
@@ -458,24 +431,13 @@ export class BrowserHttpServer {
             "/api/page/screenshot",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, format = "png"} = req.body;
-
-                    if (!sessionId) {
-                        res
-                            .status(400)
-                            .json({success: false, error: "sessionId is required"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {format = "png"} = req.body;
                     const screenshot = await page.screenshot(format);
 
                     res.setHeader("Content-Type", `image/${format}`);
@@ -832,7 +794,7 @@ export class BrowserHttpServer {
             "/api/page/expect-response-text",
             async (req: Request, res: Response) => {
                 try {
-                    const {urlOrPredicate, callback, timeout = 30000} = req.body;
+                    const {urlOrPredicate, callback, timeout = 10000} = req.body;
 
                     if (!urlOrPredicate) {
                         res
@@ -856,7 +818,7 @@ export class BrowserHttpServer {
                             if (callback) {
                                 await page.evaluate(callback);
                             }
-                        },
+                        }, timeout
                     );
 
                     res.json({success: true, data: {text}});
@@ -1102,7 +1064,7 @@ export class BrowserHttpServer {
     private validateSessionFromQuery(
         req: any,
         res: any,
-    ): {session: BrowserSession; page: BrowserPage} | null {
+    ): { session: BrowserSession; page: BrowserPage } | null {
         const {sessionId} = req.query;
 
         if (!sessionId) {
@@ -1130,7 +1092,7 @@ export class BrowserHttpServer {
     private validateSessionAndSelector(
         req: any,
         res: any,
-    ): {session: BrowserSession; page: BrowserPage} | null {
+    ): { session: BrowserSession; page: BrowserPage } | null {
         const {sessionId, selector} = req.body;
 
         if (!sessionId || !selector) {
@@ -1185,7 +1147,7 @@ export class BrowserHttpServer {
     private validateSession(
         req: any,
         res: any,
-    ): {session: BrowserSession; page: BrowserPage} | null {
+    ): { session: BrowserSession; page: BrowserPage } | null {
         const {sessionId} = req.body;
 
         if (!sessionId) {
