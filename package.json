@@ -16,7 +16,6 @@
     "chrome",
     "cdp",
     "devtools-protocol",
-    "puppeteer",
     "automation"
   ],
   "author": "",

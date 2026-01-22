@@ -8,10 +8,10 @@ export interface LocatorOptions {
 }
 
 export class BrowserLocator {
-    private page: BrowserPage;
-    private selector: string;
-    private selectorChain: string[];
-    private options: LocatorOptions;
+    private readonly page: BrowserPage;
+    private readonly selector: string;
+    private readonly selectorChain: string[];
+    private readonly options: LocatorOptions;
 
     constructor(
         page: BrowserPage,

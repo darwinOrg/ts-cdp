@@ -1,9 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import {spawnSync} from "child_process";
-import {createLogger} from "../utils/logger";
-
-const logger = createLogger("ChromeFinder");
 
 export async function findChromePath(): Promise<string> {
     const platform = process.platform;

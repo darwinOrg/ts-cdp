@@ -14,8 +14,8 @@ export class CDPClient {
     private lastLoginStateChangeTime: number;
     private loginStateChangeTimeout: NodeJS.Timeout | null;
     private reconnectAttempts: number;
-    private maxReconnectAttempts: number;
-    private reconnectDelay: number;
+    private readonly maxReconnectAttempts: number;
+    private readonly reconnectDelay: number;
     private isReconnecting: boolean;
     private heartbeatInterval: NodeJS.Timeout | null;
     private isClosed: boolean;
@@ -23,8 +23,8 @@ export class CDPClient {
     private connectionCount: number;
     private disconnectTime: number | null;
     private reconnectTimer: NodeJS.Timeout | null;
-    private disconnectHandler: () => void;
-    private readyHandler: () => void;
+    private readonly disconnectHandler: () => void;
+    private readonly readyHandler: () => void;
     private readyProcessed: boolean; // 标记 ready 事件是否已处理
 
     constructor(
@@ -394,17 +394,6 @@ export class CDPClient {
         this.currentUrl = newUrl;
     }
 
-    addNetworkCallback(
-        url: string,
-        callback: (response: any, request?: string) => void,
-    ): void {
-        this.networkListener?.addCallback(url, callback);
-    }
-
-    removeNetworkCallback(url: string): void {
-        this.networkListener?.removeCallback(url);
-    }
-
     getHAR() {
         return this.networkListener?.getHAR();
     }
@@ -509,7 +498,6 @@ export class CDPClient {
                 this.networkListener.disable();
                 logger.debug("[CDPClient] NetworkListener disabled on close");
             }
-            this.networkListener?.clearCallbacks();
             if (this.loginStateChangeTimeout) {
                 clearTimeout(this.loginStateChangeTimeout);
                 this.loginStateChangeTimeout = null;

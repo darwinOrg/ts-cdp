@@ -1148,22 +1148,8 @@ export class BrowserHttpServer {
         req: any,
         res: any,
     ): { session: BrowserSession; page: BrowserPage } | null {
-        const {sessionId} = req.body;
-
-        if (!sessionId) {
-            res.status(400).json({
-                success: false,
-                error: "sessionId is required",
-            });
-            return null;
-        }
-
-        const session = this.clients.get(sessionId);
+        const session = this.validateSessionOnly(req, res);
         if (!session) {
-            res.status(404).json({
-                success: false,
-                error: "Session not found",
-            });
             return null;
         }
 
