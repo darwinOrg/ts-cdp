@@ -464,13 +464,10 @@ export class BrowserPage {
                         if (cachedRequests.length > 0) {
                             // 使用最新的缓存请求
                             const latestRequest = cachedRequests[cachedRequests.length - 1];
-                            // 只检查在开始时间之后的请求
-                            if (latestRequest.timestamp >= startTime) {
-                                logger.debug(
-                                    `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
-                                );
-                                matchedRequests.push({url, request: latestRequest});
-                            }
+                            logger.debug(
+                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
+                            );
+                            matchedRequests.push({url, request: latestRequest});
                         }
                     }
                 }
