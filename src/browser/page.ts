@@ -1,6 +1,6 @@
 import type {CDPClient} from "./client";
 import {createLogger} from "../utils/logger";
-import {getLocalTimeISOString, toLocalTimeISOString, wildcardToRegex} from "../utils/tools";
+import {getLocalTimeString, toLocaleTimeString, wildcardToRegex} from "../utils/tools";
 import {BrowserLocator} from "./locator";
 import type {CachedRequest} from "../types";
 import CDP from "chrome-remote-interface";
@@ -398,7 +398,7 @@ export class BrowserPage {
         // 执行回调（触发页面操作）
         await callback();
         logger.debug(
-            `expectResponseText: callback completed, starting to poll cache at ${getLocalTimeISOString()}`,
+            `expectResponseText: callback completed, starting to poll cache at ${getLocalTimeString()}`,
         );
 
         // 轮询检查缓存，直到找到匹配的数据或超时
@@ -440,7 +440,7 @@ export class BrowserPage {
                             // 使用最新的缓存请求
                             const latestRequest = cachedRequests[cachedRequests.length - 1];
                             logger.debug(
-                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
+                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocaleTimeString(latestRequest.timestamp)}`,
                             );
                             matchedRequests.push({url, request: latestRequest});
                         }
@@ -454,7 +454,7 @@ export class BrowserPage {
                     });
 
                     logger.debug(
-                        `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toLocalTimeISOString(latestMatched.request.timestamp)}`,
+                        `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toLocaleTimeString(latestMatched.request.timestamp)}`,
                     );
 
                     // 将响应转换为字符串

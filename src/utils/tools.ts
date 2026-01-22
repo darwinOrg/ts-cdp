@@ -26,22 +26,30 @@ export function wildcardToRegex(pattern: string): RegExp {
 }
 
 /**
- * 获取本地时间的 ISO 字符串
- * @returns 本地时间的 ISO 字符串
+ * 获取本地时间的子符串
+ * @returns 本地时间的子符串
  */
-export function getLocalTimeISOString(): string {
-    return toLocalTimeISOString(Date.now())
+export function getLocalTimeString(): string {
+    return toLocaleString(new Date())
 }
 
 /**
- * 将时间戳转换为本地时区的 ISO 字符串
+ * 将时间戳转换为本地时间的子符串
  * @param timestamp 时间戳（毫秒）
- * @returns 本地时区的 ISO 字符串
+ * @returns 本地时间的子符串
  */
-export function toLocalTimeISOString(timestamp: number): string {
-    const date = new Date(timestamp);
-    // 使用本地时区格式化时间
-    const offset = date.getTimezoneOffset() * 60 * 1000;
-    const localTime = new Date(date.getTime() - offset);
-    return localTime.toISOString();
+export function toLocaleTimeString(timestamp: number): string {
+    return toLocaleString(new Date(timestamp));
+}
+
+function toLocaleString(date: Date): string {
+    return date.toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    });
 }

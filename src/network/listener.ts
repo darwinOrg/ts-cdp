@@ -1,6 +1,6 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import {toLocalTimeISOString, wildcardToRegex} from "../utils/tools";
+import {toLocaleTimeString, wildcardToRegex} from "../utils/tools";
 import {createLogger} from "../utils/logger";
 import type {CachedRequest, HAR, NetworkListenerConfig, NetworkRequestInfo,} from "../types";
 
@@ -257,7 +257,7 @@ export class NetworkListener {
                             ]);
 
                             logger.debug(
-                                `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocalTimeISOString(Date.now())}`,
+                                `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocaleTimeString(Date.now())}`,
                             );
                             break; // 只使用第一个匹配的 pattern
                         }

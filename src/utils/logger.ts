@@ -1,3 +1,5 @@
+import {getLocalTimeString} from "./tools";
+
 export enum LogLevel {
     INFO = "info",
     WARN = "warn",
@@ -13,17 +15,8 @@ export class Logger {
     }
 
     private formatMessage(level: LogLevel, message: string): string {
-        // 使用本地时区格式化时间
-        const timestamp = new Date().toLocaleString("zh-CN", {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-        });
-        return `[${timestamp}] [${level.toUpperCase()}] [${this.context}] ${message}`;
+        const localTime = getLocalTimeString();
+        return `[${localTime}] [${level.toUpperCase()}] [${this.context}] ${message}`;
     }
 
     info(message: string, ...args: any[]): void {
