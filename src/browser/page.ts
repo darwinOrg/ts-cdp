@@ -24,7 +24,6 @@ export class BrowserPage {
     private dom: any;
     private network: any;
     private options: PageOptions;
-    private pendingPages: BrowserPage[];
     private initialized: boolean;
 
     constructor(cdpClient: CDPClient, options: PageOptions = {}) {
@@ -38,7 +37,6 @@ export class BrowserPage {
             timeout: 10000,
             ...options,
         };
-        this.pendingPages = [];
         this.initialized = false;
     }
 
@@ -378,40 +376,6 @@ export class BrowserPage {
         await this.cdpClient.close();
     }
 
-    // expectNewPage - 等待新页面打开
-    async expectNewPage(callback: () => Promise<void>): Promise<BrowserPage> {
-        return new Promise((resolve, reject) => {
-            let listenerActive = true;
-
-            // 监听新页面
-            const targetCreatedListener = (params: any) => {
-                if (!listenerActive) return;
-
-                if (params.type === "page" && params.targetInfo.url !== "about:blank") {
-                    listenerActive = false;
-
-                    // 创建新的 BrowserPage
-                    const newPage = new BrowserPage(this.cdpClient, {
-                        name: `page-${Date.now()}`,
-                    });
-
-                    this.pendingPages.push(newPage);
-                    resolve(newPage);
-                }
-            };
-
-            this.client.Target.on("targetCreated", targetCreatedListener);
-
-            // 执行回调
-            callback()
-                .then(() => {
-                    // 标记监听器为非活跃状态
-                    listenerActive = false;
-                })
-                .catch(reject);
-        });
-    }
-
     // ExpectResponseText - 等待特定响应
     async expectResponseText(
         urlOrPredicate: string,
@@ -444,39 +408,6 @@ export class BrowserPage {
             logger.debug(
                 `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
             );
-
-            const responseCallback = (response: any, request?: string) => {
-                listenerCalled = true;
-                logger.debug(
-                    `expectResponseText: response callback triggered for ${urlOrPredicate}`,
-                );
-
-                if (!listenerActive) {
-                    return;
-                }
-
-                listenerActive = false;
-
-                // 将响应转换为字符串
-                let body: string;
-                if (typeof response === "string") {
-                    body = response;
-                } else if (typeof response === "object") {
-                    body = JSON.stringify(response);
-                } else {
-                    body = String(response);
-                }
-
-                if (body) {
-                    logger.debug(
-                        `expectResponseText: matched ${urlOrPredicate} at ${getBeijingTimeISOString()}, body length: ${body.length}`,
-                    );
-                    resolve(body);
-                } else {
-                    logger.error(`expectResponseText: response body is empty`);
-                    reject(new Error("Response body is empty"));
-                }
-            };
 
             // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
             const networkListener = this.cdpClient.getNetworkListener();
@@ -552,6 +483,39 @@ export class BrowserPage {
                         return;
                     }
                 }
+
+                const responseCallback = (response: any, request?: string) => {
+                    listenerCalled = true;
+                    logger.debug(
+                        `expectResponseText: response callback triggered for ${urlOrPredicate}`,
+                    );
+
+                    if (!listenerActive) {
+                        return;
+                    }
+
+                    listenerActive = false;
+
+                    // 将响应转换为字符串
+                    let body: string;
+                    if (typeof response === "string") {
+                        body = response;
+                    } else if (typeof response === "object") {
+                        body = JSON.stringify(response);
+                    } else {
+                        body = String(response);
+                    }
+
+                    if (body) {
+                        logger.debug(
+                            `expectResponseText: matched ${urlOrPredicate} at ${getBeijingTimeISOString()}, body length: ${body.length}`,
+                        );
+                        resolve(body);
+                    } else {
+                        logger.error(`expectResponseText: response body is empty`);
+                        reject(new Error("Response body is empty"));
+                    }
+                };
 
                 // 没有缓存，添加 callback 等待新请求
                 networkListener.addCallback(urlPattern, responseCallback);

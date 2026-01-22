@@ -23,7 +23,6 @@ export class NetworkListener {
     private initialized: boolean;
     private enabled: boolean; // 控制监听器是否启用
     private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
-    private maxCacheSize: number; // 最大缓存条数
     private lastTimestamps: Map<string, number>; // 记录每个 pattern 的最后时间戳
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
 
@@ -35,7 +34,6 @@ export class NetworkListener {
         this.initialized = false;
         this.enabled = false; // 默认禁用
         this.requestCache = new Map();
-        this.maxCacheSize = config.maxCacheSize || 100; // 默认缓存 100 条
         this.lastTimestamps = new Map();
         this.watchedPatterns = []; // 默认不监听任何 pattern
         this.har = {
@@ -94,7 +92,6 @@ export class NetworkListener {
 
         const {requestId, request, type, timestamp} = event;
         const {url, method} = request;
-        const pureUrl = getPureUrl(url);
 
         logger.debug(
             `[NetworkListener] RequestWillBeSent: ${type} ${method} ${url} (requestId: ${requestId})`,
