@@ -1,6 +1,6 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import {toLocalTimeISOString} from "../utils/url";
+import {toLocalTimeISOString, wildcardToRegex} from "../utils/url";
 import {createLogger} from "../utils/logger";
 import type {CachedRequest, HAR, NetworkListenerConfig, NetworkRequestInfo,} from "../types";
 
@@ -101,19 +101,7 @@ export class NetworkListener {
                 // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
                 for (const pattern of this.watchedPatterns) {
                     try {
-                        // 转换通配符为正则表达式
-                        let regexPattern = pattern;
-                        // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
-                        regexPattern = regexPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
-                        // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
-                        regexPattern = regexPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
-                        // 转义其他正则特殊字符（不包括 /）
-                        regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-                        // 将占位符替换为正则表达式
-                        regexPattern = regexPattern.replace(/DOUBLE_WILDCARD/g, ".*");
-                        regexPattern = regexPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
-
-                        const regex = new RegExp(regexPattern);
+                        const regex = wildcardToRegex(pattern);
                         if (regex.test(url)) {
                             shouldLog = true;
                             break;
@@ -260,19 +248,7 @@ export class NetworkListener {
                 // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
                 for (const pattern of this.watchedPatterns) {
                     try {
-                        // 转换通配符为正则表达式
-                        let regexPattern = pattern;
-                        // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
-                        regexPattern = regexPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
-                        // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
-                        regexPattern = regexPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
-                        // 转义其他正则特殊字符（不包括 /）
-                        regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-                        // 将占位符替换为正则表达式
-                        regexPattern = regexPattern.replace(/DOUBLE_WILDCARD/g, ".*");
-                        regexPattern = regexPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
-
-                        const regex = new RegExp(regexPattern);
+                        const regex = wildcardToRegex(pattern);
                         if (regex.test(req.url)) {
                             // 匹配成功，使用 pattern 作为缓存键
                             this.requestCache.set(pattern, [

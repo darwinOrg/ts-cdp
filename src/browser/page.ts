@@ -1,6 +1,6 @@
 import type {CDPClient} from "./client";
 import {createLogger} from "../utils/logger";
-import {getBeijingTimeISOString, toLocalTimeISOString,} from "../utils/url";
+import {getBeijingTimeISOString, toLocalTimeISOString, wildcardToRegex} from "../utils/url";
 import {BrowserLocator} from "./locator";
 import type {CachedRequest} from "../types";
 import CDP from "chrome-remote-interface";
@@ -373,28 +373,14 @@ export class BrowserPage {
         timeout: number = 10000,
     ): Promise<string> {
         // 支持 Playwright 风格的 URL 匹配规则
-        // 1. 字符串匹配：完全匹配
-        // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
-        // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
-        let urlPattern = urlOrPredicate;
-
-        // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
-        urlPattern = urlPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
-
-        // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
-        urlPattern = urlPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
-
-        // 转义其他正则特殊字符（不包括 /）
-        urlPattern = urlPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-
-        // 将占位符替换为正则表达式
-        urlPattern = urlPattern.replace(/DOUBLE_WILDCARD/g, ".*");
-        urlPattern = urlPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
-
-        logger.debug(
-            `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
-        );
-
+                    // 1. 字符串匹配：完全匹配
+                    // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
+                    // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
+                    const urlRegex = wildcardToRegex(urlOrPredicate);
+        
+                    logger.debug(
+                        `expectResponseText: starting for ${urlOrPredicate}`,
+                    );
         // 获取网络监听器
         const networkListener = this.cdpClient.getNetworkListener();
         if (!networkListener) {
@@ -446,9 +432,8 @@ export class BrowserPage {
                 const matchedRequests: { url: string; request: CachedRequest }[] = [];
 
                 for (const [url] of cacheStats) {
-                    // 检查 URL 是否匹配 urlOrPredicate（使用转换后的 pattern）
-                    const regex = new RegExp(urlPattern);
-                    const isMatch = regex.test(url);
+                    // 检查 URL 是否匹配 urlOrPredicate
+                    const isMatch = urlRegex.test(url);
                     if (isMatch) {
                         const cachedRequests = networkListener.getCachedRequests(url);
                         if (cachedRequests.length > 0) {

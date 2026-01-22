@@ -39,3 +39,30 @@ export function toLocalTimeISOString(timestamp: number): string {
     const localTime = new Date(date.getTime() - offset);
     return localTime.toISOString();
 }
+
+/**
+ * 将通配符模式转换为正则表达式
+ * 支持 Playwright 风格的 URL 匹配规则：
+ * - * 匹配任意字符（不包括路径分隔符 /）
+ * - ** 匹配任意字符（包括路径分隔符 /）
+ * @param pattern 通配符模式
+ * @returns 正则表达式对象
+ */
+export function wildcardToRegex(pattern: string): RegExp {
+    let regexPattern = pattern;
+
+    // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
+    regexPattern = regexPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
+
+    // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
+    regexPattern = regexPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
+
+    // 转义其他正则特殊字符（不包括 /）
+    regexPattern = regexPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+
+    // 将占位符替换为正则表达式
+    regexPattern = regexPattern.replace(/DOUBLE_WILDCARD/g, ".*");
+    regexPattern = regexPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
+
+    return new RegExp(regexPattern);
+}
