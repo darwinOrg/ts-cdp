@@ -1,22 +1,15 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import {getPureUrl, toLocalTimeISOString} from "../utils/url";
+import {toLocalTimeISOString} from "../utils/url";
 import {createLogger} from "../utils/logger";
-import type {
-    CachedRequest,
-    HAR,
-    NetworkCallback,
-    NetworkListenerConfig,
-    NetworkRequestInfo,
-    RequestData,
-} from "../types";
+import type {CachedRequest, HAR, NetworkListenerConfig, NetworkRequestInfo,} from "../types";
 
 const logger = createLogger("NetworkListener");
 
 export class NetworkListener {
-    private client: CDP.Client;
+    private readonly client: CDP.Client;
     private dumpMap: Map<string, NetworkRequestInfo>;
-    private har: HAR;
+    private readonly har: HAR;
     private config: NetworkListenerConfig;
     private initialized: boolean;
     private enabled: boolean; // 控制监听器是否启用
@@ -302,7 +295,7 @@ export class NetworkListener {
                 }
             }
 
-            } catch (error: any) {
+        } catch (error: any) {
             logger.error(`Loading finished error: ${error}`, {url: req?.url});
         } finally {
             // 清理
@@ -334,12 +327,6 @@ export class NetworkListener {
     // 获取指定 pattern 的缓存请求
     getCachedRequests(pattern: string): CachedRequest[] {
         return this.requestCache.get(pattern) || [];
-    }
-
-    // 获取最新的缓存请求
-    getLatestCachedRequest(pattern: string): CachedRequest | undefined {
-        const cachedRequests = this.getCachedRequests(pattern);
-        return cachedRequests.length > 0 ? cachedRequests[cachedRequests.length - 1] : undefined;
     }
 
     // 清除指定 pattern 的缓存
@@ -378,9 +365,5 @@ export class NetworkListener {
     // 检查监听器是否启用
     isEnabled(): boolean {
         return this.enabled;
-    }
-
-    clear(): void {
-        this.dumpMap.clear();
     }
 }

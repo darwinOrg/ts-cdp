@@ -3,6 +3,7 @@ import {createLogger} from "../utils/logger";
 import {getBeijingTimeISOString, toLocalTimeISOString,} from "../utils/url";
 import {BrowserLocator} from "./locator";
 import type {CachedRequest} from "../types";
+import CDP from "chrome-remote-interface";
 
 const logger = createLogger("BrowserPage");
 
@@ -18,11 +19,9 @@ export interface NavigateOptions {
 
 export class BrowserPage {
     private cdpClient: CDPClient;
-    private client: any;
-    private page: any;
-    private runtime: any;
-    private dom: any;
-    private network: any;
+    private readonly client: CDP.Client | null;
+    private readonly page: any;
+    private readonly runtime: any;
     private options: PageOptions;
     private initialized: boolean;
 
@@ -31,8 +30,6 @@ export class BrowserPage {
         this.client = cdpClient.getClient();
         this.page = this.client?.Page;
         this.runtime = this.client?.Runtime;
-        this.dom = this.client?.DOM;
-        this.network = this.client?.Network;
         this.options = {
             timeout: 10000,
             ...options,
@@ -43,13 +40,6 @@ export class BrowserPage {
     // 检查连接是否仍然有效
     private isConnectionValid(): boolean {
         return this.cdpClient.isConnected() && this.client !== null;
-    }
-
-    // 确保连接有效，如果无效则抛出错误
-    private ensureConnection(): void {
-        if (!this.isConnectionValid()) {
-            throw new Error("Browser connection is closed or invalid");
-        }
     }
 
     async init(): Promise<void> {
@@ -262,7 +252,7 @@ export class BrowserPage {
     }
 
     async evaluate<T>(script: string): Promise<T> {
-        return this.executeScript(script) as Promise<T>;
+        return await this.executeScript(script) as Promise<T>;
     }
 
     locator(selector: string): BrowserLocator {
