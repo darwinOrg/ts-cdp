@@ -15,26 +15,20 @@ const logger = createLogger("NetworkListener");
 
 export class NetworkListener {
     private client: CDP.Client;
-    private callbacks: Map<string, NetworkCallback>;
-    private requestIds: Map<string, RequestData>;
     private dumpMap: Map<string, NetworkRequestInfo>;
     private har: HAR;
     private config: NetworkListenerConfig;
     private initialized: boolean;
     private enabled: boolean; // 控制监听器是否启用
     private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
-    private lastTimestamps: Map<string, number>; // 记录每个 pattern 的最后时间戳
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
 
     constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
         this.client = client;
-        this.callbacks = new Map();
-        this.requestIds = new Map();
         this.dumpMap = new Map();
         this.initialized = false;
         this.enabled = false; // 默认禁用
         this.requestCache = new Map();
-        this.lastTimestamps = new Map();
         this.watchedPatterns = []; // 默认不监听任何 pattern
         this.har = {
             log: {
@@ -96,42 +90,6 @@ export class NetworkListener {
         logger.debug(
             `[NetworkListener] RequestWillBeSent: ${type} ${method} ${url} (requestId: ${requestId})`,
         );
-
-        // 检查是否是需要拦截的URL（支持正则表达式）
-        for (const [pattern, callback] of this.callbacks) {
-            if (typeof callback === "function" && method !== "OPTIONS") {
-                // 检查是否匹配（支持正则表达式）
-                const regex = new RegExp(pattern);
-                const isMatch = regex.test(url);
-                logger.debug(
-                    `[NetworkListener] Checking URL ${url} against pattern ${pattern}: ${isMatch}`,
-                );
-                if (isMatch) {
-                    // 检查时间戳：请求时间必须大于上次记录的时间戳
-                    const lastTimestamp = this.lastTimestamps.get(pattern) || 0;
-                    const requestTime = timestamp * 1000; // 转换为毫秒
-
-                    logger.debug(
-                        `[NetworkListener] Request time: ${requestTime}, Last timestamp: ${lastTimestamp}, Time difference: ${requestTime - lastTimestamp}ms`,
-                    );
-
-                    if (requestTime > lastTimestamp) {
-                        this.requestIds.set(requestId, {
-                            pattern,
-                            params: callback.length,
-                        });
-                        logger.debug(
-                            `[NetworkListener] Match found! Added requestId ${requestId} for pattern ${pattern}`,
-                        );
-                        break;
-                    } else {
-                        logger.debug(
-                            `[NetworkListener] Request time ${requestTime} is not after last timestamp ${lastTimestamp}, skipping`,
-                        );
-                    }
-                }
-            }
-        }
 
         // 只记录 XHR 请求用于监控（Fetch 请求通常是页面资源，不需要记录）
         if (type === "XHR") {
@@ -344,40 +302,11 @@ export class NetworkListener {
                 }
             }
 
-            // 如果有匹配的 callback，调用 callback
-            if (this.requestIds.has(requestId)) {
-                const {pattern} = this.requestIds.get(requestId)!;
-                const callback = this.callbacks.get(pattern);
-
-                logger.debug(
-                    `[NetworkListener] Found callback for requestId ${requestId}, pattern: ${pattern}`,
-                );
-
-                if (typeof callback === "function") {
-                    logger.debug(
-                        `[NetworkListener] Calling callback for pattern ${pattern}`,
-                    );
-                    callback(parsedResponse, requestBody);
-                    logger.debug(
-                        `[NetworkListener] Callback completed for pattern ${pattern}`,
-                    );
-                }
-
-                // 更新最后时间戳
-                this.lastTimestamps.set(pattern, Date.now());
-            } else {
-                logger.debug(
-                    `[NetworkListener] No callback found for requestId ${requestId}`,
-                );
-            }
-        } catch (error: any) {
+            } catch (error: any) {
             logger.error(`Loading finished error: ${error}`, {url: req?.url});
         } finally {
             // 清理
             this.dumpMap.delete(requestId);
-            if (this.requestIds.has(requestId)) {
-                this.requestIds.delete(requestId);
-            }
         }
     }
 
@@ -392,17 +321,6 @@ export class NetworkListener {
         }
 
         this.dumpMap.delete(requestId);
-        this.requestIds.delete(requestId);
-    }
-
-    addCallback(pattern: string, callback: NetworkCallback): void {
-        this.callbacks.set(pattern, callback);
-        logger.debug(`Added callback for: ${pattern}`);
-    }
-
-    removeCallback(pattern: string): void {
-        this.callbacks.delete(pattern);
-        logger.debug(`Removed callback for: ${pattern}`);
     }
 
     getHAR(): HAR {
@@ -428,11 +346,9 @@ export class NetworkListener {
     clearCache(pattern?: string): void {
         if (pattern) {
             this.requestCache.delete(pattern);
-            this.lastTimestamps.delete(pattern);
             logger.debug(`[NetworkListener] Cleared cache for pattern: ${pattern}`);
         } else {
             this.requestCache.clear();
-            this.lastTimestamps.clear();
             logger.debug(`[NetworkListener] Cleared all cache`);
         }
     }
@@ -464,13 +380,7 @@ export class NetworkListener {
         return this.enabled;
     }
 
-    clearCallbacks(): void {
-        this.callbacks.clear();
-    }
-
     clear(): void {
-        this.callbacks.clear();
-        this.requestIds.clear();
         this.dumpMap.clear();
     }
 }

@@ -382,78 +382,100 @@ export class BrowserPage {
         callback: () => Promise<void>,
         timeout: number = 10000,
     ): Promise<string> {
-        return new Promise((resolve, reject) => {
-            // 支持 Playwright 风格的 URL 匹配规则
-            // 1. 字符串匹配：完全匹配
-            // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
-            // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
-            let urlPattern = urlOrPredicate;
+        // 支持 Playwright 风格的 URL 匹配规则
+        // 1. 字符串匹配：完全匹配
+        // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
+        // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
+        let urlPattern = urlOrPredicate;
 
-            // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
-            urlPattern = urlPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
+        // 处理 ** 通配符（匹配任意字符，包括路径分隔符）
+        urlPattern = urlPattern.replace(/\*\*/g, "DOUBLE_WILDCARD");
 
-            // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
-            urlPattern = urlPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
+        // 处理 * 通配符（匹配任意字符，不包括路径分隔符）
+        urlPattern = urlPattern.replace(/(?<!\*)\*(?!\*)/g, "SINGLE_WILDCARD");
 
-            // 转义其他正则特殊字符（不包括 /）
-            urlPattern = urlPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+        // 转义其他正则特殊字符（不包括 /）
+        urlPattern = urlPattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
 
-            // 将占位符替换为正则表达式
-            urlPattern = urlPattern.replace(/DOUBLE_WILDCARD/g, ".*");
-            urlPattern = urlPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
+        // 将占位符替换为正则表达式
+        urlPattern = urlPattern.replace(/DOUBLE_WILDCARD/g, ".*");
+        urlPattern = urlPattern.replace(/SINGLE_WILDCARD/g, "[^/]*");
 
-            let listenerActive = false; // 初始状态为不活跃
-            let listenerCalled = false; // 标记监听器是否被调用
+        logger.debug(
+            `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
+        );
 
+        // 获取网络监听器
+        const networkListener = this.cdpClient.getNetworkListener();
+        if (!networkListener) {
+            throw new Error("NetworkListener not initialized");
+        }
+
+        // 启用网络监听器（确保监听器处于启用状态）
+        if (!networkListener.isEnabled()) {
+            networkListener.enable();
             logger.debug(
-                `expectResponseText: starting for ${urlOrPredicate} (pattern: ${urlPattern})`,
+                `expectResponseText: enabled network listener`,
             );
+        }
 
-            // 使用 NetworkListener 的回调机制（在 loadingFinished 中调用）
-            const networkListener = this.cdpClient.getNetworkListener();
-            if (networkListener) {
-                // 启用网络监听器（确保监听器处于启用状态）
-                if (!networkListener.isEnabled()) {
-                    networkListener.enable();
-                    logger.debug(
-                        `expectResponseText: enabled network listener`,
+        // 执行回调（触发页面操作）
+        await callback();
+        logger.debug(
+            `expectResponseText: callback completed, starting to poll cache at ${getBeijingTimeISOString()}`,
+        );
+
+        // 轮询检查缓存，直到找到匹配的数据或超时
+        const startTime = Date.now();
+        const pollInterval = 100; // 每 100ms 检查一次
+
+        return new Promise((resolve, reject) => {
+            const poll = () => {
+                const elapsed = Date.now() - startTime;
+
+                if (elapsed > timeout) {
+                    logger.warn(
+                        `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
                     );
+                    // 打印调试信息
+                    const cacheStats = networkListener.getCacheStats();
+                    logger.debug(
+                        `expectResponseText: cache stats at timeout: ${cacheStats.size} cached URLs`,
+                    );
+                    for (const [url] of cacheStats) {
+                        logger.debug(`  Cached URL: ${url}`);
+                    }
+                    reject(
+                        new Error(`Timeout waiting for response: ${urlOrPredicate}`),
+                    );
+                    return;
                 }
 
-                // 先检查缓存中是否已经有匹配的请求
-                // 遍历所有缓存的 URL，找到匹配的请求
+                // 检查缓存中是否有匹配的请求
                 const cacheStats = networkListener.getCacheStats();
-                logger.debug(
-                    `expectResponseText: checking cache. Total cached URLs: ${cacheStats.size}`,
-                );
-                for (const [url] of cacheStats) {
-                    logger.debug(`  Cached URL: ${url}`);
-                }
-
-                // 在所有匹配的URL中找到时间戳最新的请求
                 const matchedRequests: { url: string; request: CachedRequest }[] = [];
 
                 for (const [url] of cacheStats) {
                     // 检查 URL 是否匹配 urlOrPredicate（使用转换后的 pattern）
                     const regex = new RegExp(urlPattern);
                     const isMatch = regex.test(url);
-                    logger.debug(
-                        `expectResponseText: checking cached URL ${url} against pattern ${urlPattern}: ${isMatch}`,
-                    );
                     if (isMatch) {
                         const cachedRequests = networkListener.getCachedRequests(url);
                         if (cachedRequests.length > 0) {
                             // 使用最新的缓存请求
                             const latestRequest = cachedRequests[cachedRequests.length - 1];
-                            logger.debug(
-                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
-                            );
-                            matchedRequests.push({url, request: latestRequest});
+                            // 只检查在开始时间之后的请求
+                            if (latestRequest.timestamp >= startTime) {
+                                logger.debug(
+                                    `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocalTimeISOString(latestRequest.timestamp)}`,
+                                );
+                                matchedRequests.push({url, request: latestRequest});
+                            }
                         }
                     }
                 }
 
-                // 在所有匹配的请求中，找到时间戳最新的那个
+                // 如果找到了匹配的请求
                 if (matchedRequests.length > 0) {
                     const latestMatched = matchedRequests.reduce((latest, current) => {
                         return current.request.timestamp > latest.request.timestamp ? current : latest;
@@ -484,92 +506,12 @@ export class BrowserPage {
                     }
                 }
 
-                const responseCallback = (response: any, request?: string) => {
-                    listenerCalled = true;
-                    logger.debug(
-                        `expectResponseText: response callback triggered for ${urlOrPredicate}`,
-                    );
+                // 继续轮询
+                setTimeout(poll, pollInterval);
+            };
 
-                    if (!listenerActive) {
-                        return;
-                    }
-
-                    listenerActive = false;
-
-                    // 将响应转换为字符串
-                    let body: string;
-                    if (typeof response === "string") {
-                        body = response;
-                    } else if (typeof response === "object") {
-                        body = JSON.stringify(response);
-                    } else {
-                        body = String(response);
-                    }
-
-                    if (body) {
-                        logger.debug(
-                            `expectResponseText: matched ${urlOrPredicate} at ${getBeijingTimeISOString()}, body length: ${body.length}`,
-                        );
-                        resolve(body);
-                    } else {
-                        logger.error(`expectResponseText: response body is empty`);
-                        reject(new Error("Response body is empty"));
-                    }
-                };
-
-                // 没有缓存，添加 callback 等待新请求
-                networkListener.addCallback(urlPattern, responseCallback);
-                logger.debug(
-                    `expectResponseText: added callback for pattern ${urlPattern}`,
-                );
-            } else {
-                reject(new Error("NetworkListener not initialized"));
-                return;
-            }
-
-            // 执行回调
-            callback()
-                .then(() => {
-                    // 回调完成后，激活监听器
-                    listenerActive = true;
-                    logger.debug(
-                        `expectResponseText: callback completed, listener activated at ${getBeijingTimeISOString()}`,
-                    );
-
-                    // 设置超时检查（最多等待 timeout 毫秒，如果有结果马上返回）
-                    setTimeout(() => {
-                        if (listenerActive && !listenerCalled) {
-                            logger.warn(
-                                `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
-                            );
-                            // 打印调试信息
-                            if (networkListener) {
-                                const cacheStats = networkListener.getCacheStats();
-                                logger.debug(
-                                    `expectResponseText: cache stats at timeout: ${cacheStats.size} cached URLs`,
-                                );
-                                for (const [url] of cacheStats) {
-                                    logger.debug(`  Cached URL: ${url}`);
-                                }
-                            }
-                            // 清理回调
-                            if (networkListener) {
-                                networkListener.removeCallback(urlPattern);
-                            }
-                            reject(
-                                new Error(`Timeout waiting for response: ${urlOrPredicate}`),
-                            );
-                        }
-                    }, timeout);
-                })
-                .catch((err: any) => {
-                    logger.error(`expectResponseText: callback failed: ${err}`);
-                    // 清理回调
-                    if (networkListener) {
-                        networkListener.removeCallback(urlPattern);
-                    }
-                    reject(err);
-                });
+            // 开始轮询
+            poll();
         });
     }
 
