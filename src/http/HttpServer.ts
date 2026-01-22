@@ -454,22 +454,12 @@ export class BrowserHttpServer {
         // 获取页面标题
         this.app.get("/api/page/title", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.query;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
+                const result = this.validateSessionFromQuery(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId as string);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
                 const title = await page.getTitle();
 
                 res.json({success: true, data: {title}});
@@ -485,22 +475,12 @@ export class BrowserHttpServer {
         // 获取页面 URL
         this.app.get("/api/page/url", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.query;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
+                const result = this.validateSessionFromQuery(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId as string);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
                 const url = await page.getUrl();
 
                 res.json({success: true, data: {url}});
@@ -1055,22 +1035,12 @@ export class BrowserHttpServer {
         // 获取页面 HTML
         this.app.get("/api/page/html", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.query;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
+                const result = this.validateSessionFromQuery(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId as string);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
                 const html = await page.getHTML();
 
                 res.json({success: true, data: {html}});
@@ -1214,6 +1184,34 @@ export class BrowserHttpServer {
         }
 
         return true;
+    }
+
+    // 辅助方法：从 query 参数中验证 sessionId，返回 session 和 page
+    private validateSessionFromQuery(
+        req: any,
+        res: any,
+    ): {session: BrowserSession; page: BrowserPage} | null {
+        const {sessionId} = req.query;
+
+        if (!sessionId) {
+            res.status(400).json({
+                success: false,
+                error: "sessionId is required",
+            });
+            return null;
+        }
+
+        const session = this.clients.get(sessionId as string);
+        if (!session) {
+            res.status(404).json({
+                success: false,
+                error: "Session not found",
+            });
+            return null;
+        }
+
+        const page = this.getPage(session);
+        return {session, page};
     }
 
     // 辅助方法：验证 sessionId 和 selector，返回 session 和 page
