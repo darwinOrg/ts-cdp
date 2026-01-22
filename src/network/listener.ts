@@ -2,39 +2,25 @@ import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
 import {toLocaleTimeString, wildcardToRegex} from "../utils/tools";
 import {createLogger} from "../utils/logger";
-import type {CachedRequest, HAR, NetworkListenerConfig, NetworkRequestInfo,} from "../types";
+import type {CachedRequest, NetworkRequestInfo} from "../types";
 
 const logger = createLogger("NetworkListener");
 
 export class NetworkListener {
     private readonly client: CDP.Client;
     private dumpMap: Map<string, NetworkRequestInfo>;
-    private readonly har: HAR;
-    private config: NetworkListenerConfig;
     private initialized: boolean;
     private enabled: boolean; // 控制监听器是否启用
     private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
 
-    constructor(client: CDP.Client, config: NetworkListenerConfig = {}) {
+    constructor(client: CDP.Client) {
         this.client = client;
         this.dumpMap = new Map();
         this.initialized = false;
         this.enabled = false; // 默认禁用
         this.requestCache = new Map();
         this.watchedPatterns = []; // 默认不监听任何 pattern
-        this.har = {
-            log: {
-                version: "1.2",
-                creator: {name: "ts-cdp", version: "1.0.0"},
-                entries: [],
-            },
-        };
-        this.config = {
-            watchUrls: config.watchUrls || [],
-            enableHAR: config.enableHAR !== false,
-            maxCacheSize: config.maxCacheSize || 100,
-        };
     }
 
     async init(): Promise<void> {
@@ -50,10 +36,6 @@ export class NetworkListener {
                 this.handleRequestWillBeSent(event);
             },
         );
-
-        Network.responseReceived(async (params) => {
-            await this.handleResponseReceived(params);
-        });
 
         Network.loadingFinished(
             async (event: Protocol.Network.LoadingFinishedEvent) => {
@@ -115,70 +97,6 @@ export class NetworkListener {
                 logger.debug(`[${type}] → ${method} ${url}`);
             }
         }
-    }
-
-    private async handleResponseReceived(params: any): Promise<void> {
-        // 如果监听器未启用，直接返回
-        if (!this.enabled) {
-            return;
-        }
-
-        const {requestId, response, timestamp, type} = params;
-
-        // 只处理 XHR 请求，不处理 Fetch 请求（Fetch 请求通常是页面资源）
-        if (type !== "XHR") {
-            return;
-        }
-
-        try {
-            // 处理 watchUrls
-            if (this.config.watchUrls && this.config.watchUrls.length > 0) {
-                const shouldWatch = this.config.watchUrls.some((watchUrl) =>
-                    response.url.includes(watchUrl),
-                );
-
-                if (shouldWatch) {
-                    const req = this.dumpMap.get(requestId);
-
-                    try {
-                        const {Network} = this.client;
-                        const res = await Network.getResponseBody({requestId});
-
-                        if (this.config.enableHAR) {
-                            this.har.log.entries.push({
-                                startedDateTime: new Date(
-                                    (req?.timestamp || timestamp) * 1000,
-                                ).toISOString(),
-                                time: (timestamp - (req?.timestamp || timestamp)) * 1000,
-                                request: {
-                                    method: req?.method || "GET",
-                                    url: req?.url || response.url,
-                                    headers: req?.headers,
-                                },
-                                response: {
-                                    status: response.status,
-                                    statusText: response.statusText,
-                                    mimeType: response.mimeType,
-                                    text: res.body,
-                                },
-                            });
-                        }
-
-                        logger.debug(`[watchUrls] ← ${response.status} ${response.url}`);
-                    } catch (getBodyError) {
-                        logger.debug(
-                            `Could not get response body for HAR logging for ${requestId}:`,
-                            getBodyError,
-                        );
-                    }
-                }
-            }
-        } catch (error) {
-            logger.error(`Response received error: ${error}`);
-        }
-
-        // 不要在这里删除 dumpMap，因为 handleLoadingFinished 还需要它
-        // this.dumpMap.delete(requestId);
     }
 
     private async handleLoadingFinished(
@@ -286,14 +204,6 @@ export class NetworkListener {
         }
 
         this.dumpMap.delete(requestId);
-    }
-
-    getHAR(): HAR {
-        return this.har;
-    }
-
-    clearHAR(): void {
-        this.har.log.entries = [];
     }
 
     // 获取指定 pattern 的缓存请求

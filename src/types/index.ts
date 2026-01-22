@@ -4,82 +4,6 @@ export interface CDPClientOptions {
     enableDomains?: string[];
 }
 
-export interface InterceptOptions {
-    timeout?: number;
-    maxAttempts?: number;
-    triggerAction?: () => Promise<void>;
-}
-
-export interface InterceptResult {
-    success: boolean;
-    data?: string;
-    error?: string;
-    metadata?: {
-        timestamp: string;
-        attemptCount: number;
-        requestUrl: string;
-    };
-}
-
-export interface NetworkRequestInfo {
-    requestId: string;
-    url: string;
-    method: string;
-    headers?: Record<string, string>;
-    type?: string;
-    timestamp: number;
-}
-
-export interface NetworkResponseInfo {
-    requestId: string;
-    url: string;
-    status: number;
-    statusText: string;
-    mimeType: string;
-    headers?: Record<string, string>;
-    timestamp: number;
-    body?: string;
-}
-
-export interface HARLogEntry {
-    startedDateTime: string;
-    time: number;
-    request: {
-        method: string;
-        url: string;
-        headers?: Record<string, string>;
-    };
-    response: {
-        status: number;
-        statusText: string;
-        mimeType: string;
-        text: string;
-    };
-}
-
-export interface HAR {
-    log: {
-        version: string;
-        creator: {
-            name: string;
-            version: string;
-        };
-        entries: HARLogEntry[];
-    };
-}
-
-export type NetworkCallback = (response: any, request?: string) => void;
-
-export type LoginState = "login" | "logout";
-
-export interface LoginCallback {
-    (state: LoginState): void;
-}
-
-export interface DisconnectCallback {
-    (): void;
-}
-
 export interface CDPClientConfig {
     uid?: number;
     port: number;
@@ -93,10 +17,23 @@ export interface CDPClientConfig {
     };
 }
 
-export interface NetworkListenerConfig {
-    watchUrls?: string[];
-    enableHAR?: boolean;
-    maxCacheSize?: number;
+export interface NetworkRequestInfo {
+    requestId: string;
+    url: string;
+    method: string;
+    headers?: Record<string, string>;
+    type?: string;
+    timestamp: number;
+}
+
+export type LoginState = "login" | "logout";
+
+export interface LoginCallback {
+    (state: LoginState): void;
+}
+
+export interface DisconnectCallback {
+    (): void;
 }
 
 export interface CachedRequest {

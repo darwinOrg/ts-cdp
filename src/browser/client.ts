@@ -1,7 +1,7 @@
 import CDP from "chrome-remote-interface";
 import {NetworkListener} from "../network/listener";
 import {createLogger} from "../utils/logger";
-import type {CDPClientConfig, CDPClientOptions, NetworkListenerConfig,} from "../types";
+import type {CDPClientConfig, CDPClientOptions} from "../types";
 
 const logger = createLogger("CDPClient");
 
@@ -291,12 +291,7 @@ export class CDPClient {
     private async initNetworkListener(): Promise<void> {
         if (!this.client) return;
 
-        const networkConfig: NetworkListenerConfig = {
-            watchUrls: this.config.watchUrls,
-            enableHAR: true,
-        };
-
-        this.networkListener = new NetworkListener(this.client, networkConfig);
+        this.networkListener = new NetworkListener(this.client);
         await this.networkListener.init();
     }
 
@@ -392,10 +387,6 @@ export class CDPClient {
         }
 
         this.currentUrl = newUrl;
-    }
-
-    getHAR() {
-        return this.networkListener?.getHAR();
     }
 
     async navigate(url: string): Promise<void> {
