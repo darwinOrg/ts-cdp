@@ -80,10 +80,6 @@ export class NetworkListener {
         const {requestId, request, type, timestamp} = event;
         const {url, method} = request;
 
-        logger.debug(
-            `[NetworkListener] RequestWillBeSent: ${type} ${method} ${url} (requestId: ${requestId})`,
-        );
-
         // 只记录 XHR 请求用于监控（Fetch 请求通常是页面资源，不需要记录）
         if (type === "XHR") {
             this.dumpMap.set(requestId, {

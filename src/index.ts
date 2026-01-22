@@ -12,9 +12,4 @@ export {
     ChromeInstance,
 } from "./launcher";
 
-export {
-    getAntiDetectScript,
-    injectAntiDetectScript,
-} from "./utils/anti-detect";
-
 export * from "./types";
