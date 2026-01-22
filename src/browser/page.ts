@@ -1,6 +1,6 @@
 import type {CDPClient} from "./client";
 import {createLogger} from "../utils/logger";
-import {getBeijingTimeISOString, toLocalTimeISOString, wildcardToRegex} from "../utils/url";
+import {getLocalTimeISOString, toLocalTimeISOString, wildcardToRegex} from "../utils/tools";
 import {BrowserLocator} from "./locator";
 import type {CachedRequest} from "../types";
 import CDP from "chrome-remote-interface";
@@ -373,14 +373,14 @@ export class BrowserPage {
         timeout: number = 10000,
     ): Promise<string> {
         // 支持 Playwright 风格的 URL 匹配规则
-                    // 1. 字符串匹配：完全匹配
-                    // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
-                    // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
-                    const urlRegex = wildcardToRegex(urlOrPredicate);
-        
-                    logger.debug(
-                        `expectResponseText: starting for ${urlOrPredicate}`,
-                    );
+        // 1. 字符串匹配：完全匹配
+        // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
+        // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
+        const urlRegex = wildcardToRegex(urlOrPredicate);
+
+        logger.debug(
+            `expectResponseText: starting for ${urlOrPredicate}`,
+        );
         // 获取网络监听器
         const networkListener = this.cdpClient.getNetworkListener();
         if (!networkListener) {
@@ -398,7 +398,7 @@ export class BrowserPage {
         // 执行回调（触发页面操作）
         await callback();
         logger.debug(
-            `expectResponseText: callback completed, starting to poll cache at ${getBeijingTimeISOString()}`,
+            `expectResponseText: callback completed, starting to poll cache at ${getLocalTimeISOString()}`,
         );
 
         // 轮询检查缓存，直到找到匹配的数据或超时

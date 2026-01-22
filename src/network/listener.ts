@@ -1,6 +1,6 @@
 import CDP from "chrome-remote-interface";
 import type Protocol from "devtools-protocol/types/protocol.d";
-import {toLocalTimeISOString, wildcardToRegex} from "../utils/url";
+import {toLocalTimeISOString, wildcardToRegex} from "../utils/tools";
 import {createLogger} from "../utils/logger";
 import type {CachedRequest, HAR, NetworkListenerConfig, NetworkRequestInfo,} from "../types";
 
