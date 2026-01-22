@@ -23,8 +23,8 @@ export class BrowserHttpServer {
     private app: express.Application;
     private server: any;
     private clients: Map<string, BrowserSession>;
-    private port: number;
-    private host: string;
+    private readonly port: number;
+    private readonly host: string;
 
     constructor(options: HttpServerOptions) {
         this.port = options.port;
@@ -722,27 +722,13 @@ export class BrowserHttpServer {
             "/api/page/wait-for-selector-visible",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector} = req.body;
-
-                    if (!sessionId || !selector) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and selector are required",
-                            });
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     await page.waitForSelectorStateVisible(selector);
 
                     res.json({success: true});
@@ -763,27 +749,13 @@ export class BrowserHttpServer {
             "/api/element/exists",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector} = req.body;
-
-                    if (!sessionId || !selector) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and selector are required",
-                            });
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const locator = page.locator(selector);
                     const exists = await locator.exists();
 
@@ -801,25 +773,13 @@ export class BrowserHttpServer {
         // 获取元素文本
         this.app.post("/api/element/text", async (req: Request, res: Response) => {
             try {
-                const {sessionId, selector} = req.body;
-
-                if (!sessionId || !selector) {
-                    res
-                        .status(400)
-                        .json({
-                            success: false,
-                            error: "sessionId and selector are required",
-                        });
+                const result = this.validateSessionAndSelector(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
+                const {selector} = req.body;
                 const locator = page.locator(selector);
                 const text = await locator.getText();
 
@@ -836,25 +796,13 @@ export class BrowserHttpServer {
         // 点击元素
         this.app.post("/api/element/click", async (req: Request, res: Response) => {
             try {
-                const {sessionId, selector} = req.body;
-
-                if (!sessionId || !selector) {
-                    res
-                        .status(400)
-                        .json({
-                            success: false,
-                            error: "sessionId and selector are required",
-                        });
+                const result = this.validateSessionAndSelector(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
+                const {selector} = req.body;
                 const locator = page.locator(selector);
                 await locator.click();
 
@@ -871,25 +819,13 @@ export class BrowserHttpServer {
         // 鼠标悬停
         this.app.post("/api/element/hover", async (req: Request, res: Response) => {
             try {
-                const {sessionId, selector} = req.body;
-
-                if (!sessionId || !selector) {
-                    res
-                        .status(400)
-                        .json({
-                            success: false,
-                            error: "sessionId and selector are required",
-                        });
+                const result = this.validateSessionAndSelector(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
+                const {selector} = req.body;
                 const locator = page.locator(selector);
                 await locator.hover();
 
@@ -908,9 +844,9 @@ export class BrowserHttpServer {
             "/api/element/setValue",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector, value} = req.body;
+                    const {value} = req.body;
 
-                    if (!sessionId || !selector || value === undefined) {
+                    if (value === undefined) {
                         res
                             .status(400)
                             .json({
@@ -920,15 +856,13 @@ export class BrowserHttpServer {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const locator = page.locator(selector);
                     await locator.setValue(value);
 
@@ -946,25 +880,13 @@ export class BrowserHttpServer {
         // 等待元素
         this.app.post("/api/element/wait", async (req: Request, res: Response) => {
             try {
-                const {sessionId, selector, timeout = 30000} = req.body;
-
-                if (!sessionId || !selector) {
-                    res
-                        .status(400)
-                        .json({
-                            success: false,
-                            error: "sessionId and selector are required",
-                        });
+                const result = this.validateSessionAndSelector(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
+                const {selector, timeout = 30000} = req.body;
                 await page.waitForSelector(selector, {timeout});
 
                 res.json({success: true});
@@ -982,9 +904,9 @@ export class BrowserHttpServer {
             "/api/element/attribute",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector, attribute} = req.body;
+                    const {attribute} = req.body;
 
-                    if (!sessionId || !selector || !attribute) {
+                    if (!attribute) {
                         res
                             .status(400)
                             .json({
@@ -994,15 +916,13 @@ export class BrowserHttpServer {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const locator = page.locator(selector);
                     const value = await locator.getAttribute(attribute);
 
@@ -1028,9 +948,9 @@ export class BrowserHttpServer {
             "/api/page/expect-response-text",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, urlOrPredicate, callback, timeout = 30000} = req.body;
+                    const {urlOrPredicate, callback, timeout = 30000} = req.body;
 
-                    if (!sessionId || !urlOrPredicate) {
+                    if (!urlOrPredicate) {
                         res
                             .status(400)
                             .json({
@@ -1040,15 +960,12 @@ export class BrowserHttpServer {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const page = this.getPage(session);
+                    const {page} = result;
                     const text = await page.expectResponseText(
                         urlOrPredicate,
                         async () => {
@@ -1074,27 +991,13 @@ export class BrowserHttpServer {
             "/api/page/inner-text",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector} = req.body;
-
-                    if (!sessionId || !selector) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and selector are required",
-                            });
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const text = await page.innerText(selector);
 
                     res.json({success: true, data: {text}});
@@ -1113,27 +1016,13 @@ export class BrowserHttpServer {
             "/api/page/text-content",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector} = req.body;
-
-                    if (!sessionId || !selector) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and selector are required",
-                            });
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const text = await page.textContent(selector);
 
                     res.json({success: true, data: {text}});
@@ -1219,27 +1108,13 @@ export class BrowserHttpServer {
             "/api/element/all-texts",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId, selector} = req.body;
-
-                    if (!sessionId || !selector) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and selector are required",
-                            });
+                    const result = this.validateSessionAndSelector(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
+                    const {selector} = req.body;
                     const locator = page.locator(selector);
                     const texts = await locator.allInnerTexts();
 
@@ -1297,25 +1172,13 @@ export class BrowserHttpServer {
         // 获取元素数量
         this.app.post("/api/element/count", async (req: Request, res: Response) => {
             try {
-                const {sessionId, selector} = req.body;
-
-                if (!sessionId || !selector) {
-                    res
-                        .status(400)
-                        .json({
-                            success: false,
-                            error: "sessionId and selector are required",
-                        });
+                const result = this.validateSessionAndSelector(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
+                const {selector} = req.body;
                 const locator = page.locator(selector);
                 const count = await locator.getCount();
 
@@ -1350,6 +1213,62 @@ export class BrowserHttpServer {
             throw new Error("Page not found");
         }
         return session.page;
+    }
+
+    // 辅助方法：验证 sessionId 和 selector，返回 session 和 page
+    private validateSessionAndSelector(
+        req: any,
+        res: any,
+    ): {session: BrowserSession; page: BrowserPage} | null {
+        const {sessionId, selector} = req.body;
+
+        if (!sessionId || !selector) {
+            res.status(400).json({
+                success: false,
+                error: "sessionId and selector are required",
+            });
+            return null;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+            res.status(404).json({
+                success: false,
+                error: "Session not found",
+            });
+            return null;
+        }
+
+        const page = this.getPage(session);
+        return {session, page};
+    }
+
+    // 辅助方法：验证 sessionId，返回 session 和 page
+    private validateSession(
+        req: any,
+        res: any,
+    ): {session: BrowserSession; page: BrowserPage} | null {
+        const {sessionId} = req.body;
+
+        if (!sessionId) {
+            res.status(400).json({
+                success: false,
+                error: "sessionId is required",
+            });
+            return null;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+            res.status(404).json({
+                success: false,
+                error: "Session not found",
+            });
+            return null;
+        }
+
+        const page = this.getPage(session);
+        return {session, page};
     }
 
     async start(): Promise<void> {
