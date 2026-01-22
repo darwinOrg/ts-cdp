@@ -134,24 +134,14 @@ export class BrowserHttpServer {
         // 断开连接
         this.app.post("/api/browser/disconnect", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                const session = this.clients.get(sessionId);
+                const session = this.validateSessionOnly(req, res);
                 if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
                     return;
                 }
 
                 // 只关闭客户端连接，不杀掉浏览器进程
                 await session.client.close();
-                this.clients.delete(sessionId);
+                this.clients.delete(session.sessionId);
 
                 res.json({success: true});
             } catch (error) {
@@ -166,18 +156,8 @@ export class BrowserHttpServer {
         // 关闭浏览器
         this.app.post("/api/browser/stop", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                const session = this.clients.get(sessionId);
+                const session = this.validateSessionOnly(req, res);
                 if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
                     return;
                 }
 
@@ -189,11 +169,11 @@ export class BrowserHttpServer {
                     session.chrome.kill();
                 }
 
-                this.clients.delete(sessionId);
+                this.clients.delete(session.sessionId);
 
                 res.json({success: true});
             } catch (error) {
-                logger.error("Failed to stop browser:", error);
+                logger.error("Failed to close browser:", error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : "Unknown error",
@@ -242,18 +222,8 @@ export class BrowserHttpServer {
         // 禁用网络监听
         this.app.post("/api/network/disable", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                const session = this.clients.get(sessionId);
+                const session = this.validateSessionOnly(req, res);
                 if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
                     return;
                 }
 
@@ -389,22 +359,12 @@ export class BrowserHttpServer {
         // 刷新页面
         this.app.post("/api/page/reload", async (req: Request, res: Response) => {
             try {
-                const {sessionId} = req.body;
-
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
+                const result = this.validateSession(req, res);
+                if (!result) {
                     return;
                 }
 
-                const session = this.clients.get(sessionId);
-                if (!session) {
-                    res.status(404).json({success: false, error: "Session not found"});
-                    return;
-                }
-
-                const page = this.getPage(session);
+                const {page} = result;
                 await page.reload();
 
                 res.json({success: true});
@@ -574,24 +534,12 @@ export class BrowserHttpServer {
             "/api/page/reload-with-loaded-state",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId} = req.body;
-
-                    if (!sessionId) {
-                        res
-                            .status(400)
-                            .json({success: false, error: "sessionId is required"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
                     await page.reloadWithLoadedState();
 
                     res.json({success: true});
@@ -610,24 +558,12 @@ export class BrowserHttpServer {
             "/api/page/wait-for-load-state-load",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId} = req.body;
-
-                    if (!sessionId) {
-                        res
-                            .status(400)
-                            .json({success: false, error: "sessionId is required"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
                     await page.waitForLoadStateLoad();
 
                     res.json({success: true});
@@ -646,24 +582,12 @@ export class BrowserHttpServer {
             "/api/page/wait-for-dom-content-loaded",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId} = req.body;
-
-                    if (!sessionId) {
-                        res
-                            .status(400)
-                            .json({success: false, error: "sessionId is required"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
                     await page.waitForDomContentLoaded();
 
                     res.json({success: true});
@@ -1001,24 +925,12 @@ export class BrowserHttpServer {
             "/api/page/close",
             async (req: Request, res: Response) => {
                 try {
-                    const {sessionId} = req.body;
-
-                    if (!sessionId) {
-                        res
-                            .status(400)
-                            .json({success: false, error: "sessionId is required"});
+                    const result = this.validateSession(req, res);
+                    if (!result) {
                         return;
                     }
 
-                    const session = this.clients.get(sessionId);
-                    if (!session) {
-                        res
-                            .status(404)
-                            .json({success: false, error: "Session not found"});
-                        return;
-                    }
-
-                    const page = this.getPage(session);
+                    const {page} = result;
                     await page.close();
 
                     res.json({success: true});
@@ -1240,6 +1152,33 @@ export class BrowserHttpServer {
 
         const page = this.getPage(session);
         return {session, page};
+    }
+
+    // 辅助方法：验证 sessionId，返回 session
+    private validateSessionOnly(
+        req: any,
+        res: any,
+    ): BrowserSession | null {
+        const {sessionId} = req.body;
+
+        if (!sessionId) {
+            res.status(400).json({
+                success: false,
+                error: "sessionId is required",
+            });
+            return null;
+        }
+
+        const session = this.clients.get(sessionId);
+        if (!session) {
+            res.status(404).json({
+                success: false,
+                error: "Session not found",
+            });
+            return null;
+        }
+
+        return session;
     }
 
     // 辅助方法：验证 sessionId，返回 session 和 page
