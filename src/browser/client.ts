@@ -274,7 +274,7 @@ export class CDPClient {
         return this.client;
     }
 
-    getNetworkListener(): any {
+    getNetworkListener(): NetworkListener | null {
         return this.networkListener;
     }
 
