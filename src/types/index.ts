@@ -99,11 +99,6 @@ export interface NetworkListenerConfig {
     maxCacheSize?: number;
 }
 
-export interface RequestData {
-    pattern: string;
-    params: number;
-}
-
 export interface CachedRequest {
     url: string;
     timestamp: number;

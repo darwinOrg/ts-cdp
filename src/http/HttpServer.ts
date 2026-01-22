@@ -66,17 +66,7 @@ export class BrowserHttpServer {
             try {
                 const {sessionId, headless = false} = req.body;
 
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                if (this.clients.has(sessionId)) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "Session already exists"});
+                if (!this.validateNewSession(sessionId, res)) {
                     return;
                 }
 
@@ -111,17 +101,7 @@ export class BrowserHttpServer {
             try {
                 const {sessionId, port = 9222} = req.body;
 
-                if (!sessionId) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "sessionId is required"});
-                    return;
-                }
-
-                if (this.clients.has(sessionId)) {
-                    res
-                        .status(400)
-                        .json({success: false, error: "Session already exists"});
+                if (!this.validateNewSession(sessionId, res)) {
                     return;
                 }
 
@@ -1213,6 +1193,27 @@ export class BrowserHttpServer {
             throw new Error("Page not found");
         }
         return session.page;
+    }
+
+    // 辅助方法：验证新的 sessionId（是否存在且不重复）
+    private validateNewSession(sessionId: string, res: any): boolean {
+        if (!sessionId) {
+            res.status(400).json({
+                success: false,
+                error: "sessionId is required",
+            });
+            return false;
+        }
+
+        if (this.clients.has(sessionId)) {
+            res.status(400).json({
+                success: false,
+                error: "Session already exists",
+            });
+            return false;
+        }
+
+        return true;
     }
 
     // 辅助方法：验证 sessionId 和 selector，返回 session 和 page
