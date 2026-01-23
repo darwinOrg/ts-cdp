@@ -163,6 +163,17 @@ Content-Type: application/json
 }
 ```
 
+#### 等待 网络 空闲
+
+```bash
+POST /api/page/wait-for-network-idle
+Content-Type: application/json
+
+{
+  "sessionId": "session-123"
+}
+```
+
 #### 等待选择器可见
 ```bash
 POST /api/page/wait-for-selector-visible

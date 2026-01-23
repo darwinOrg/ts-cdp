@@ -533,6 +533,11 @@ export class BrowserPage {
         await this.waitForLoadState("domcontentloaded");
     }
 
+    // waitForNetworkIdle - 等待 网络 空闲
+    async waitForNetworkIdle(): Promise<void> {
+        await this.waitForLoadState("networkidle");
+    }
+
     // WaitForSelectorStateVisible - 等待元素可见
     async waitForSelectorStateVisible(selector: string): Promise<void> {
         await this.waitForSelector(selector, {state: "visible"});

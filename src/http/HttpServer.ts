@@ -563,6 +563,30 @@ export class BrowserHttpServer {
             },
         );
 
+        // 等待 网络 空闲
+        this.app.post(
+            "/api/page/wait-for-network-idle",
+            async (req: Request, res: Response) => {
+                try {
+                    const result = this.validateSession(req, res);
+                    if (!result) {
+                        return;
+                    }
+
+                    const {page} = result;
+                    await page.waitForNetworkIdle();
+
+                    res.json({success: true});
+                } catch (error) {
+                    logger.error("Failed to wait for network idle:", error);
+                    res.status(500).json({
+                        success: false,
+                        error: error instanceof Error ? error.message : "Unknown error",
+                    });
+                }
+            },
+        );
+
         // 等待选择器可见
         this.app.post(
             "/api/page/wait-for-selector-visible",
