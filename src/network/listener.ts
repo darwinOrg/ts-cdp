@@ -13,6 +13,7 @@ export class NetworkListener {
     private enabled: boolean; // 控制监听器是否启用
     private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
+    private watchedRegexes: RegExp[]; // 要监听的 url正则 列表
 
     constructor(client: CDP.Client) {
         this.client = client;
@@ -21,6 +22,7 @@ export class NetworkListener {
         this.enabled = false; // 默认禁用
         this.requestCache = new Map();
         this.watchedPatterns = []; // 默认不监听任何 pattern
+        this.watchedRegexes = []; // 默认不监听任何 url正则
     }
 
     async init(): Promise<void> {
@@ -73,23 +75,22 @@ export class NetworkListener {
                 timestamp,
             });
 
-            // 只打印匹配 watchedPatterns 的 XHR 请求日志
+            // 只打印匹配 watchedRegexes 的 XHR 请求日志
             let shouldLog = false;
-            if (this.enabled && this.watchedPatterns.length > 0) {
-                // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
-                for (const pattern of this.watchedPatterns) {
+            if (this.enabled && this.watchedRegexes.length > 0) {
+                // 检查 URL 是否匹配 watchedRegexes 中的任何一个 pattern
+                for (const regex of this.watchedRegexes) {
                     try {
-                        const regex = wildcardToRegex(pattern);
                         if (regex.test(url)) {
                             shouldLog = true;
                             break;
                         }
                     } catch (error) {
-                        // pattern 无效，跳过
+                        // regex 无效，跳过
                     }
                 }
-            } else if (this.enabled && this.watchedPatterns.length === 0) {
-                // 如果启用了监听器但没有指定 watchedPatterns，打印所有 XHR 请求
+            } else if (this.enabled && this.watchedRegexes.length === 0) {
+                // 如果启用了监听器但没有指定 watchedRegexes，打印所有 XHR 请求
                 shouldLog = true;
             }
 
@@ -103,7 +104,7 @@ export class NetworkListener {
         event: Protocol.Network.LoadingFinishedEvent,
     ): Promise<void> {
         // 如果监听器未启用，直接返回
-        if (!this.enabled) {
+        if (!this.enabled || this.watchedRegexes.length === 0) {
             return;
         }
 
@@ -111,80 +112,82 @@ export class NetworkListener {
 
         // 获取请求信息
         const req = this.dumpMap.get(requestId);
-        if (!req || req.type !== "XHR") {
+        if (!req || req.type !== "XHR" || !req.url) {
             return;
         }
 
         const {Network} = this.client;
 
         try {
-            // 获取请求体（对非 GET 请求获取，如 POST、PUT、PATCH 等）
-            let requestBody;
-            if (req.method !== "GET") {
-                try {
-                    const requestPostData = await Network.getRequestPostData({
-                        requestId,
-                    });
-                    requestBody = requestPostData.postData;
-                } catch (requestError) {
-                    // 静默处理：某些 POST 请求可能没有请求体数据，这是正常情况
-                }
-            }
-
-            // 获取响应体
-            let responseBody;
-            try {
-                responseBody = await Network.getResponseBody({requestId});
-            } catch (responseError) {
-                // 某些响应可能无法获取响应体（如二进制文件），记录但不中断处理
-                logger.debug(
-                    `Could not get response body for ${requestId}:`,
-                    responseError,
-                );
-                return;
-            }
-
-            // 解析响应
-            let parsedResponse = responseBody.body;
-            try {
-                if (responseBody.body && responseBody.body.trim()) {
-                    parsedResponse = JSON.parse(responseBody.body);
-                }
-            } catch (parseError) {
-                logger.debug(
-                    `Could not parse response as JSON for ${req.url}, using raw response:`,
-                    parseError,
-                );
-            }
-
             // 缓存所有 XHR 请求（按 urlPattern 存储，每个 pattern 只保留最新的一条）
-            if (req.url && this.watchedPatterns.length > 0) {
-                // 检查 URL 是否匹配 watchedPatterns 中的任何一个 pattern
-                for (const pattern of this.watchedPatterns) {
-                    try {
-                        const regex = wildcardToRegex(pattern);
-                        if (regex.test(req.url)) {
-                            // 匹配成功，使用 pattern 作为缓存键
-                            this.requestCache.set(pattern, [
-                                {
-                                    url: req.url,
-                                    timestamp: Date.now(),
-                                    response: parsedResponse,
-                                    request: requestBody,
-                                },
-                            ]);
+            // 检查 URL 是否匹配 watchedRegexes 中的任何一个 regex
+            for (const [index, regex] of this.watchedRegexes.entries()) {
+                const pattern = this.watchedPatterns[index]
 
-                            logger.debug(
-                                `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocaleTimeString(Date.now())}`,
-                            );
-                            break; // 只使用第一个匹配的 pattern
-                        }
-                    } catch (error) {
-                        logger.debug(`[NetworkListener] Invalid pattern: ${pattern}`, error);
+                try {
+                    if (!regex.test(req.url)) {
+                        continue
                     }
+
+                    // 获取请求体（对非 GET 请求获取，如 POST、PUT、PATCH 等）
+                    let requestBody;
+                    if (req.method !== "GET") {
+                        try {
+                            const requestPostData = await Network.getRequestPostData({
+                                requestId,
+                            });
+                            requestBody = requestPostData.postData;
+                        } catch (requestError) {
+                            // 静默处理：某些 POST 请求可能没有请求体数据，这是正常情况
+                        }
+                    }
+
+                    // 获取响应体
+                    let responseBody;
+                    try {
+                        responseBody = await Network.getResponseBody({requestId});
+                    } catch (responseError) {
+                        // 某些响应可能无法获取响应体（如二进制文件），记录但不中断处理
+                        logger.debug(
+                            `Could not get response body for ${requestId}:`,
+                            responseError,
+                        );
+                        return;
+                    }
+
+                    // 解析响应
+                    let parsedResponse = responseBody.body;
+                    try {
+                        if (responseBody.body && responseBody.body.trim()) {
+                            parsedResponse = JSON.parse(responseBody.body);
+                        }
+                    } catch (parseError) {
+                        logger.debug(
+                            `Could not parse response as JSON for ${req.url}, using raw response:`,
+                            parseError,
+                        );
+                    }
+
+                    const timestamp = Date.now()
+
+                    // 匹配成功，使用 pattern 作为缓存键
+                    this.requestCache.set(pattern, [
+                        {
+                            url: req.url,
+                            timestamp: timestamp,
+                            response: parsedResponse,
+                            request: requestBody,
+                        },
+                    ]);
+
+                    logger.debug(
+                        `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocaleTimeString(timestamp)}`,
+                    );
+                    break; // 只使用第一个匹配的 pattern
+                } catch (error) {
+                    logger.debug(`[NetworkListener] Invalid pattern: ${pattern}`, error);
                 }
             }
-
         } catch (error: any) {
             logger.error(`Loading finished error: ${error}`, {url: req?.url});
         } finally {
@@ -235,6 +238,7 @@ export class NetworkListener {
     enable(urlPatterns: string[] = []): void {
         this.enabled = true;
         this.watchedPatterns = urlPatterns;
+        this.watchedRegexes = urlPatterns.map(pattern => wildcardToRegex(pattern));
         logger.debug(`[NetworkListener] NetworkListener enabled with patterns: ${urlPatterns.join(", ")}`);
     }
 
