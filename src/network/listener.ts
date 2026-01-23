@@ -57,45 +57,36 @@ export class NetworkListener {
         event: Protocol.Network.RequestWillBeSentEvent,
     ): void {
         // 如果监听器未启用，直接返回
-        if (!this.enabled) {
+        if (!this.enabled || this.watchedRegexes.length === 0) {
             return;
         }
 
         const {requestId, request, type, timestamp} = event;
-        const {url, method} = request;
 
         // 只记录 XHR 请求用于监控（Fetch 请求通常是页面资源，不需要记录）
-        if (type === "XHR") {
-            this.dumpMap.set(requestId, {
-                requestId,
-                url,
-                method,
-                headers: request.headers,
-                type,
-                timestamp,
-            });
+        if (type !== "XHR") {
+            return;
+        }
 
-            // 只打印匹配 watchedRegexes 的 XHR 请求日志
-            let shouldLog = false;
-            if (this.enabled && this.watchedRegexes.length > 0) {
-                // 检查 URL 是否匹配 watchedRegexes 中的任何一个 pattern
-                for (const regex of this.watchedRegexes) {
-                    try {
-                        if (regex.test(url)) {
-                            shouldLog = true;
-                            break;
-                        }
-                    } catch (error) {
-                        // regex 无效，跳过
-                    }
-                }
-            } else if (this.enabled && this.watchedRegexes.length === 0) {
-                // 如果启用了监听器但没有指定 watchedRegexes，打印所有 XHR 请求
-                shouldLog = true;
-            }
+        const {url, method} = request;
+        if (!url) {
+            return;
+        }
 
-            if (shouldLog) {
+        // 检查 URL 是否匹配 watchedRegexes 中的任何一个 pattern
+        for (const regex of this.watchedRegexes) {
+            if (regex.test(url)) {
+                this.dumpMap.set(requestId, {
+                    requestId,
+                    url,
+                    method,
+                    headers: request.headers,
+                    type,
+                    timestamp,
+                });
+
                 logger.debug(`[${type}] → ${method} ${url}`);
+                break;
             }
         }
     }
@@ -112,7 +103,7 @@ export class NetworkListener {
 
         // 获取请求信息
         const req = this.dumpMap.get(requestId);
-        if (!req || req.type !== "XHR" || !req.url) {
+        if (!req || !req.url || req.type !== "XHR") {
             return;
         }
 
@@ -199,13 +190,25 @@ export class NetworkListener {
     private handleLoadingFailed(
         event: Protocol.Network.LoadingFailedEvent,
     ): void {
+        // 如果监听器未启用，直接返回
+        if (!this.enabled || this.watchedRegexes.length === 0) {
+            return;
+        }
+
         const {requestId, errorText, type} = event;
 
         // 只记录 XHR 请求的失败
-        if (type === "XHR") {
-            logger.warn(`Network request failed: ${errorText}`, {requestId});
+        if (type !== "XHR") {
+            return;
         }
 
+        // 获取请求信息
+        const req = this.dumpMap.get(requestId);
+        if (!req || !req.url) {
+            return;
+        }
+
+        logger.warn(`Network request failed: ${errorText}`, {requestId});
         this.dumpMap.delete(requestId);
     }
 
