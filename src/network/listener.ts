@@ -11,7 +11,7 @@ export class NetworkListener {
     private dumpMap: Map<string, NetworkRequestInfo>;
     private initialized: boolean;
     private enabled: boolean; // 控制监听器是否启用
-    private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
+    private requestCache: Map<string, CachedRequest>; // 缓存请求结果（按 urlPattern 存储，只保留最后一次）
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
     private watchedRegexes: RegExp[]; // 要监听的 url正则 列表
     private inFlightRequests: Set<string>; // 跟踪所有活跃的请求（用于 networkidle 检测）
@@ -179,15 +179,13 @@ export class NetworkListener {
 
                     const timestamp = Date.now()
 
-                    // 匹配成功，使用 pattern 作为缓存键
-                    this.requestCache.set(pattern, [
-                        {
-                            url: req.url,
-                            timestamp: timestamp,
-                            response: parsedResponse,
-                            request: requestBody,
-                        },
-                    ]);
+                    // 匹配成功，使用 pattern 作为缓存键，只保留最后一次请求结果
+                    this.requestCache.set(pattern, {
+                        url: req.url,
+                        timestamp: timestamp,
+                        response: parsedResponse,
+                        request: requestBody,
+                    });
 
                     logger.debug(
                         `[NetworkListener] Cached XHR response for pattern ${pattern}, URL: ${req.url}, timestamp: ${toLocaleTimeString(timestamp)}`,
@@ -231,8 +229,8 @@ export class NetworkListener {
     }
 
     // 获取指定 pattern 的缓存请求
-    getCachedRequests(pattern: string): CachedRequest[] {
-        return this.requestCache.get(pattern) || [];
+    getCachedRequests(pattern: string): CachedRequest | null {
+        return this.requestCache.get(pattern) || null;
     }
 
     // 清除指定 pattern 的缓存
@@ -246,13 +244,9 @@ export class NetworkListener {
         }
     }
 
-    // 获取缓存统计信息
-    getCacheStats(): Map<string, number> {
-        const stats = new Map<string, number>();
-        for (const [pattern, requests] of this.requestCache.entries()) {
-            stats.set(pattern, requests.length);
-        }
-        return stats;
+    // 获取所有缓存的 pattern
+    getCachePatterns(): string[] {
+        return Array.from(this.requestCache.keys());
     }
 
     // 启用网络监听，可以指定多个 urlPattern

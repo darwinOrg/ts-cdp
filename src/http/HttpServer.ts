@@ -247,12 +247,22 @@ export class BrowserHttpServer {
                 const {session} = result;
                 const networkListener = session.client.getNetworkListener();
                 if (networkListener) {
-                    const cacheStats = networkListener.getCacheStats();
+                    const cachePatterns = networkListener.getCachePatterns();
+                    const cacheData: Record<string, any> = {};
+                    for (const pattern of cachePatterns) {
+                        const cachedRequest = networkListener.getCachedRequests(pattern);
+                        if (cachedRequest) {
+                            cacheData[pattern] = {
+                                url: cachedRequest.url,
+                                timestamp: cachedRequest.timestamp,
+                            };
+                        }
+                    }
                     res.json({
                         success: true,
                         data: {
                             enabled: networkListener.isEnabled(),
-                            cacheStats: Object.fromEntries(cacheStats),
+                            cacheStats: cacheData,
                         },
                     });
                 } else {

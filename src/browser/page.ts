@@ -431,11 +431,11 @@ export class BrowserPage {
                         `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
                     );
                     // 打印调试信息
-                    const cacheStats = networkListener.getCacheStats();
+                    const cachePatterns = networkListener.getCachePatterns();
                     logger.debug(
-                        `expectResponseText: cache stats at timeout: ${cacheStats.size} cached URLs`,
+                        `expectResponseText: cache stats at timeout: ${cachePatterns.length} cached URLs`,
                     );
-                    for (const [url] of cacheStats) {
+                    for (const url of cachePatterns) {
                         logger.debug(`  Cached URL: ${url}`);
                     }
                     reject(
@@ -445,50 +445,42 @@ export class BrowserPage {
                 }
 
                 // 检查缓存中是否有匹配的请求
-                const cacheStats = networkListener.getCacheStats();
-                const matchedRequests: { url: string; request: CachedRequest }[] = [];
+                const cachePatterns = networkListener.getCachePatterns();
+                let matchedRequest: CachedRequest | null = null;
 
-                for (const [url] of cacheStats) {
-                    // 检查 URL 是否匹配 urlOrPredicate
-                    const isMatch = urlRegex.test(url);
-                    if (isMatch) {
-                        const cachedRequests = networkListener.getCachedRequests(url);
-                        if (cachedRequests.length > 0) {
-                            // 使用最新的缓存请求
-                            const latestRequest = cachedRequests[cachedRequests.length - 1];
+                for (const url of cachePatterns) {
+                    if (url === urlOrPredicate) {
+                        matchedRequest = networkListener.getCachedRequests(url);
+                        if (matchedRequest) {
                             logger.debug(
-                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocaleTimeString(latestRequest.timestamp)}`,
+                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocaleTimeString(matchedRequest.timestamp)}`,
                             );
-                            matchedRequests.push({url, request: latestRequest});
                         }
+                        break; // 找到第一个匹配的请求就停止
                     }
                 }
 
                 // 如果找到了匹配的请求
-                if (matchedRequests.length > 0) {
-                    const latestMatched = matchedRequests.reduce((latest, current) => {
-                        return current.request.timestamp > latest.request.timestamp ? current : latest;
-                    });
-
+                if (matchedRequest) {
                     logger.debug(
-                        `expectResponseText: selected latest cached request from URL ${latestMatched.url}, timestamp: ${toLocaleTimeString(latestMatched.request.timestamp)}`,
+                        `expectResponseText: selected cached request from URL ${matchedRequest.url}, timestamp: ${toLocaleTimeString(matchedRequest.timestamp)}`,
                     );
 
                     // 将响应转换为字符串
                     let body: string;
-                    if (typeof latestMatched.request.response === "string") {
-                        body = latestMatched.request.response;
-                    } else if (typeof latestMatched.request.response === "object") {
-                        body = JSON.stringify(latestMatched.request.response);
+                    if (typeof matchedRequest.response === "string") {
+                        body = matchedRequest.response;
+                    } else if (typeof matchedRequest.response === "object") {
+                        body = JSON.stringify(matchedRequest.response);
                     } else {
-                        body = String(latestMatched.request.response);
+                        body = String(matchedRequest.response);
                     }
 
                     if (body) {
                         // 清除已获取的缓存，避免下次重复获取
-                        networkListener.clearCache(latestMatched.url);
+                        networkListener.clearCache(matchedRequest.url);
                         logger.debug(
-                            `expectResponseText: cleared cache for URL ${latestMatched.url}`,
+                            `expectResponseText: cleared cache for URL ${matchedRequest.url}`,
                         );
                         resolve(body);
                         return;
