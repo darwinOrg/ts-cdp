@@ -381,10 +381,12 @@ export class BrowserHttpServer {
                     return;
                 }
 
+                logger.debug("Execute script:", script)
                 const page = this.getPage(session);
                 const result = await page.evaluate(script);
 
-                res.json({success: true, result});
+                logger.debug("Execute script result:", result)
+                res.json({success: true, data: {result}});
             } catch (error) {
                 logger.error("Failed to execute script:", error);
                 res.status(500).json({
@@ -622,6 +624,94 @@ export class BrowserHttpServer {
             },
         );
 
+        // 期望响应文本
+        this.app.post(
+            "/api/page/expect-response-text",
+            async (req: Request, res: Response) => {
+                try {
+                    const {urlOrPredicate, callback, timeout = 10000} = req.body;
+
+                    if (!urlOrPredicate) {
+                        res
+                            .status(400)
+                            .json({
+                                success: false,
+                                error: "sessionId and urlOrPredicate are required",
+                            });
+                        return;
+                    }
+
+                    const result = this.validateSession(req, res);
+                    if (!result) {
+                        return;
+                    }
+
+                    const {page} = result;
+                    const text = await page.expectResponseText(
+                        urlOrPredicate,
+                        async () => {
+                            if (callback) {
+                                await page.evaluate(callback);
+                            }
+                        }, timeout
+                    );
+
+                    res.json({success: true, data: {text}});
+                } catch (error) {
+                    logger.error("Failed to expect response text:", error);
+                    res.status(500).json({
+                        success: false,
+                        error: error instanceof Error ? error.message : "Unknown error",
+                    });
+                }
+            },
+        );
+
+        // 关闭页面
+        this.app.post(
+            "/api/page/close",
+            async (req: Request, res: Response) => {
+                try {
+                    const result = this.validateSession(req, res);
+                    if (!result) {
+                        return;
+                    }
+
+                    const {page} = result;
+                    await page.close();
+
+                    res.json({success: true});
+                } catch (error) {
+                    logger.error("Failed to close all:", error);
+                    res.status(500).json({
+                        success: false,
+                        error: error instanceof Error ? error.message : "Unknown error",
+                    });
+                }
+            },
+        );
+
+        // 获取页面 HTML
+        this.app.get("/api/page/html", async (req: Request, res: Response) => {
+            try {
+                const result = this.validateSessionFromQuery(req, res);
+                if (!result) {
+                    return;
+                }
+
+                const {page} = result;
+                const html = await page.getHTML();
+
+                res.json({success: true, data: {html}});
+            } catch (error) {
+                logger.error("Failed to get HTML:", error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : "Unknown error",
+                });
+            }
+        });
+
         // ========== 元素操作 ==========
 
         // 检查元素是否存在
@@ -649,29 +739,6 @@ export class BrowserHttpServer {
                 }
             },
         );
-
-        // 获取元素文本
-        this.app.post("/api/element/text", async (req: Request, res: Response) => {
-            try {
-                const result = this.validateSessionAndSelector(req, res);
-                if (!result) {
-                    return;
-                }
-
-                const {page} = result;
-                const {selector} = req.body;
-                const locator = page.locator(selector);
-                const text = await locator.getText();
-
-                res.json({success: true, data: {text}});
-            } catch (error) {
-                logger.error("Failed to get element text:", error);
-                res.status(500).json({
-                    success: false,
-                    error: error instanceof Error ? error.message : "Unknown error",
-                });
-            }
-        });
 
         // 点击元素
         this.app.post("/api/element/click", async (req: Request, res: Response) => {
@@ -766,7 +833,7 @@ export class BrowserHttpServer {
                 }
 
                 const {page} = result;
-                const {selector, timeout = 30000} = req.body;
+                const {selector, timeout = 10000} = req.body;
                 await page.waitForSelector(selector, {timeout});
 
                 res.json({success: true});
@@ -817,58 +884,9 @@ export class BrowserHttpServer {
             },
         );
 
-        // 获取所有会话
-        this.app.get("/api/sessions", (req: Request, res: Response) => {
-            const sessions = Array.from(this.clients.keys());
-            res.json({success: true, sessions});
-        });
-
-        // 期望响应文本
-        this.app.post(
-            "/api/page/expect-response-text",
-            async (req: Request, res: Response) => {
-                try {
-                    const {urlOrPredicate, callback, timeout = 10000} = req.body;
-
-                    if (!urlOrPredicate) {
-                        res
-                            .status(400)
-                            .json({
-                                success: false,
-                                error: "sessionId and urlOrPredicate are required",
-                            });
-                        return;
-                    }
-
-                    const result = this.validateSession(req, res);
-                    if (!result) {
-                        return;
-                    }
-
-                    const {page} = result;
-                    const text = await page.expectResponseText(
-                        urlOrPredicate,
-                        async () => {
-                            if (callback) {
-                                await page.evaluate(callback);
-                            }
-                        }, timeout
-                    );
-
-                    res.json({success: true, data: {text}});
-                } catch (error) {
-                    logger.error("Failed to expect response text:", error);
-                    res.status(500).json({
-                        success: false,
-                        error: error instanceof Error ? error.message : "Unknown error",
-                    });
-                }
-            },
-        );
-
         // 获取内部文本
         this.app.post(
-            "/api/page/inner-text",
+            "/api/element/inner-text",
             async (req: Request, res: Response) => {
                 try {
                     const result = this.validateSessionAndSelector(req, res);
@@ -893,7 +911,7 @@ export class BrowserHttpServer {
 
         // 获取文本内容
         this.app.post(
-            "/api/page/text-content",
+            "/api/element/text-content",
             async (req: Request, res: Response) => {
                 try {
                     const result = this.validateSessionAndSelector(req, res);
@@ -915,51 +933,6 @@ export class BrowserHttpServer {
                 }
             },
         );
-
-        // 关闭页面
-        this.app.post(
-            "/api/page/close",
-            async (req: Request, res: Response) => {
-                try {
-                    const result = this.validateSession(req, res);
-                    if (!result) {
-                        return;
-                    }
-
-                    const {page} = result;
-                    await page.close();
-
-                    res.json({success: true});
-                } catch (error) {
-                    logger.error("Failed to close all:", error);
-                    res.status(500).json({
-                        success: false,
-                        error: error instanceof Error ? error.message : "Unknown error",
-                    });
-                }
-            },
-        );
-
-        // 获取页面 HTML
-        this.app.get("/api/page/html", async (req: Request, res: Response) => {
-            try {
-                const result = this.validateSessionFromQuery(req, res);
-                if (!result) {
-                    return;
-                }
-
-                const {page} = result;
-                const html = await page.getHTML();
-
-                res.json({success: true, data: {html}});
-            } catch (error) {
-                logger.error("Failed to get HTML:", error);
-                res.status(500).json({
-                    success: false,
-                    error: error instanceof Error ? error.message : "Unknown error",
-                });
-            }
-        });
 
         // 获取所有匹配元素的文本
         this.app.post(

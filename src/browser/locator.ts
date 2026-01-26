@@ -335,9 +335,4 @@ export class BrowserLocator {
         }
         return attributes;
     }
-
-    // GetSelectors - 获取选择器链
-    getSelectors(): string[] {
-        return this.selectorChain;
-    }
 }
