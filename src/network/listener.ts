@@ -40,7 +40,7 @@ export class NetworkListener {
             (event: Protocol.Network.RequestWillBeSentEvent) => {
                 // 跟踪所有活跃请求
                 this.inFlightRequests.add(event.requestId);
-                logger.debug(`[NetworkListener] Request started, in-flight: ${this.inFlightRequests.size}, type: ${event.type}`);
+                // logger.debug(`[NetworkListener] Request started, in-flight: ${this.inFlightRequests.size}, type: ${event.type}`);
 
                 // 处理 XHR 请求（用于缓存）
                 this.handleRequestWillBeSent(event);
@@ -51,7 +51,7 @@ export class NetworkListener {
             async (event: Protocol.Network.LoadingFinishedEvent) => {
                 // 从活跃请求中移除
                 this.inFlightRequests.delete(event.requestId);
-                logger.debug(`[NetworkListener] Request finished, in-flight: ${this.inFlightRequests.size}`);
+                // logger.debug(`[NetworkListener] Request finished, in-flight: ${this.inFlightRequests.size}`);
 
                 // 处理 XHR 请求（用于缓存）
                 await this.handleLoadingFinished(event);
@@ -61,7 +61,7 @@ export class NetworkListener {
         Network.loadingFailed((event: Protocol.Network.LoadingFailedEvent) => {
             // 从活跃请求中移除
             this.inFlightRequests.delete(event.requestId);
-            logger.debug(`[NetworkListener] Request failed, in-flight: ${this.inFlightRequests.size}`);
+            // logger.debug(`[NetworkListener] Request failed, in-flight: ${this.inFlightRequests.size}`);
 
             // 处理 XHR 请求
             this.handleLoadingFailed(event);

@@ -43,7 +43,7 @@ export function toLocaleTimeString(timestamp: number): string {
 }
 
 function toLocaleString(date: Date): string {
-    return date.toLocaleString("zh-CN", {
+    const timeStr = date.toLocaleString("zh-CN", {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -52,4 +52,6 @@ function toLocaleString(date: Date): string {
         second: "2-digit",
         hour12: false,
     });
+    const ms = String(date.getMilliseconds()).padStart(3, '0');
+    return `${timeStr}.${ms}`;
 }
