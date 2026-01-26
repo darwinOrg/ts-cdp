@@ -14,6 +14,7 @@ export class NetworkListener {
     private requestCache: Map<string, CachedRequest[]>; // 缓存请求结果（按 urlPattern 存储）
     private watchedPatterns: string[]; // 要监听的 urlPattern 列表
     private watchedRegexes: RegExp[]; // 要监听的 url正则 列表
+    private inFlightRequests: Set<string>; // 跟踪所有活跃的请求（用于 networkidle 检测）
 
     constructor(client: CDP.Client) {
         this.client = client;
@@ -23,6 +24,7 @@ export class NetworkListener {
         this.requestCache = new Map();
         this.watchedPatterns = []; // 默认不监听任何 pattern
         this.watchedRegexes = []; // 默认不监听任何 url正则
+        this.inFlightRequests = new Set(); // 初始化活跃请求跟踪
     }
 
     async init(): Promise<void> {
@@ -33,19 +35,35 @@ export class NetworkListener {
 
         const {Network} = this.client;
 
+        // 监听所有请求（用于 networkidle 检测）
         Network.requestWillBeSent(
             (event: Protocol.Network.RequestWillBeSentEvent) => {
+                // 跟踪所有活跃请求
+                this.inFlightRequests.add(event.requestId);
+                logger.debug(`[NetworkListener] Request started, in-flight: ${this.inFlightRequests.size}, type: ${event.type}`);
+
+                // 处理 XHR 请求（用于缓存）
                 this.handleRequestWillBeSent(event);
             },
         );
 
         Network.loadingFinished(
             async (event: Protocol.Network.LoadingFinishedEvent) => {
+                // 从活跃请求中移除
+                this.inFlightRequests.delete(event.requestId);
+                logger.debug(`[NetworkListener] Request finished, in-flight: ${this.inFlightRequests.size}`);
+
+                // 处理 XHR 请求（用于缓存）
                 await this.handleLoadingFinished(event);
             },
         );
 
         Network.loadingFailed((event: Protocol.Network.LoadingFailedEvent) => {
+            // 从活跃请求中移除
+            this.inFlightRequests.delete(event.requestId);
+            logger.debug(`[NetworkListener] Request failed, in-flight: ${this.inFlightRequests.size}`);
+
+            // 处理 XHR 请求
             this.handleLoadingFailed(event);
         });
 
@@ -254,5 +272,59 @@ export class NetworkListener {
     // 检查监听器是否启用
     isEnabled(): boolean {
         return this.enabled;
+    }
+
+    // 等待网络空闲
+    // idleTimeout: 空闲超时时间（毫秒），默认 500ms
+    // maxInFlight: 最大允许的活跃请求数，默认 2
+    // timeout: 总超时时间（毫秒），默认 10000ms
+    async waitForNetworkIdle(
+        idleTimeout: number = 500,
+        maxInFlight: number = 2,
+        timeout: number = 10000,
+    ): Promise<void> {
+        const startTime = Date.now();
+        let lastBusyTime = Date.now();
+        let resolved = false;
+
+        logger.info(
+            `[NetworkListener] waitForNetworkIdle: starting, idleTimeout=${idleTimeout}ms, maxInFlight=${maxInFlight}, timeout=${timeout}ms`,
+        );
+
+        return new Promise((resolve, reject) => {
+            const checkIdle = () => {
+                if (resolved) return;
+
+                // 检查总超时
+                if (Date.now() - startTime > timeout) {
+                    resolved = true;
+                    logger.warn(
+                        `[NetworkListener] waitForNetworkIdle: timeout, in-flight requests: ${this.inFlightRequests.size}`,
+                    );
+                    resolve(); // 超时时也 resolve，避免阻塞
+                    return;
+                }
+
+                // 检查是否达到空闲状态
+                if (this.inFlightRequests.size <= maxInFlight) {
+                    if (Date.now() - lastBusyTime >= idleTimeout) {
+                        resolved = true;
+                        logger.info(
+                            `[NetworkListener] waitForNetworkIdle: achieved, in-flight requests: ${this.inFlightRequests.size}`,
+                        );
+                        resolve();
+                        return;
+                    }
+                } else {
+                    lastBusyTime = Date.now();
+                }
+
+                // 继续检查
+                setTimeout(checkIdle, 100);
+            };
+
+            // 开始检查
+            checkIdle();
+        });
     }
 }

@@ -137,11 +137,28 @@ export class BrowserPage {
                             resolve();
                             return;
                         } else if (state === "networkidle") {
-                            // 简化的 networkidle 检查
-                            resolve();
+                            // 使用 NetworkListener 的 waitForNetworkIdle 方法
+                            const networkListener = this.cdpClient.getNetworkListener();
+                            if (!networkListener) {
+                                logger.warn("waitForLoadState: NetworkListener not initialized");
+                                resolve();
+                                return;
+                            }
+
+                            logger.info(
+                                `waitForLoadState: using NetworkListener.waitForNetworkIdle, timeout=${timeoutMs}ms`,
+                            );
+
+                            try {
+                                await networkListener.waitForNetworkIdle(500, 0, timeoutMs);
+                                logger.info(`waitForLoadState: networkidle achieved`);
+                                resolve();
+                            } catch (error) {
+                                logger.error(`waitForLoadState: error waiting for networkidle: ${error}`);
+                                resolve(); // 即使出错也 resolve，避免阻塞
+                            }
                             return;
                         }
-
                         logger.debug(
                             `waitForLoadState: state=${state}, readyState=${readyState}, waiting...`
                         );
