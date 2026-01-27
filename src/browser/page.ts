@@ -385,18 +385,12 @@ export class BrowserPage {
 
     // ExpectResponseText - 等待特定响应
     async expectResponseText(
-        urlOrPredicate: string,
+        urlPattern: string,
         callback: () => Promise<void>,
         timeout: number = 10000,
     ): Promise<string> {
-        // 支持 Playwright 风格的 URL 匹配规则
-        // 1. 字符串匹配：完全匹配
-        // 2. * 通配符：匹配任意字符（不包括路径分隔符 /）
-        // 3. ** 通配符：匹配任意字符（包括路径分隔符 /）
-        const urlRegex = wildcardToRegex(urlOrPredicate);
-
         logger.debug(
-            `expectResponseText: starting for ${urlOrPredicate}`,
+            `expectResponseText: starting for ${urlPattern}`,
         );
         // 获取网络监听器
         const networkListener = this.cdpClient.getNetworkListener();
@@ -428,7 +422,7 @@ export class BrowserPage {
 
                 if (elapsed > timeout) {
                     logger.warn(
-                        `expectResponseText: no response received within ${timeout}ms for ${urlOrPredicate}`,
+                        `expectResponseText: no response received within ${timeout}ms for ${urlPattern}`,
                     );
                     // 打印调试信息
                     const cachePatterns = networkListener.getCachePatterns();
@@ -439,7 +433,7 @@ export class BrowserPage {
                         logger.debug(`  Cached URL: ${url}`);
                     }
                     reject(
-                        new Error(`Timeout waiting for response: ${urlOrPredicate}`),
+                        new Error(`Timeout waiting for response: ${urlPattern}`),
                     );
                     return;
                 }
@@ -449,11 +443,11 @@ export class BrowserPage {
                 let matchedRequest: CachedRequest | null = null;
 
                 for (const url of cachePatterns) {
-                    if (url === urlOrPredicate) {
+                    if (url === urlPattern) {
                         matchedRequest = networkListener.getCachedRequests(url);
                         if (matchedRequest) {
                             logger.debug(
-                                `expectResponseText: found cached request for ${urlOrPredicate} in cached URL ${url}, timestamp: ${toLocaleTimeString(matchedRequest.timestamp)}`,
+                                `expectResponseText: found cached request for ${urlPattern} in cached URL ${url}, timestamp: ${toLocaleTimeString(matchedRequest.timestamp)}`,
                             );
                         }
                         break; // 找到第一个匹配的请求就停止
