@@ -629,14 +629,14 @@ export class BrowserHttpServer {
             "/api/page/expect-response-text",
             async (req: Request, res: Response) => {
                 try {
-                    const {urlOrPredicate, callback, timeout = 10000} = req.body;
+                    const {urlPattern, callback, timeout = 10000} = req.body;
 
-                    if (!urlOrPredicate) {
+                    if (!urlPattern) {
                         res
                             .status(400)
                             .json({
                                 success: false,
-                                error: "sessionId and urlOrPredicate are required",
+                                error: "urlPattern is required",
                             });
                         return;
                     }
@@ -648,7 +648,7 @@ export class BrowserHttpServer {
 
                     const {page} = result;
                     const text = await page.expectResponseText(
-                        urlOrPredicate,
+                        urlPattern,
                         async () => {
                             if (callback) {
                                 await page.evaluate(callback);
