@@ -295,7 +295,7 @@ Content-Type: application/json
 {
   "sessionId": "session-123",
   "selector": "#result",
-  "timeout": 10000
+  "timeout": 30000
 }
 ```
 

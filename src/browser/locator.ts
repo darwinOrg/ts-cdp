@@ -23,7 +23,7 @@ export class BrowserLocator {
         this.selector = selector;
         this.selectorChain = [...selectorChain, selector]; // 保存选择器链
         this.options = {
-            timeout: 10000,
+            timeout: 30000,
             ...options,
         };
     }

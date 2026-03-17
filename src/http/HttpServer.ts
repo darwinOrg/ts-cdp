@@ -629,7 +629,7 @@ export class BrowserHttpServer {
             "/api/page/expect-response-text",
             async (req: Request, res: Response) => {
                 try {
-                    const {urlPattern, callback, timeout = 10000} = req.body;
+                    const {urlPattern, callback, timeout = 30000} = req.body;
 
                     if (!urlPattern) {
                         res
@@ -833,7 +833,7 @@ export class BrowserHttpServer {
                 }
 
                 const {page} = result;
-                const {selector, timeout = 10000} = req.body;
+                const {selector, timeout = 30000} = req.body;
                 await page.waitForSelector(selector, {timeout});
 
                 res.json({success: true});

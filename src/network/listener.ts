@@ -275,7 +275,7 @@ export class NetworkListener {
     async waitForNetworkIdle(
         idleTimeout: number = 500,
         maxInFlight: number = 2,
-        timeout: number = 10000,
+        timeout: number = 30000,
     ): Promise<void> {
         const startTime = Date.now();
         let lastBusyTime = Date.now();

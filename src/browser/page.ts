@@ -31,7 +31,7 @@ export class BrowserPage {
         this.page = this.client?.Page;
         this.runtime = this.client?.Runtime;
         this.options = {
-            timeout: 10000,
+            timeout: 30000,
             ...options,
         };
         this.initialized = false;
@@ -92,7 +92,7 @@ export class BrowserPage {
         state: "load" | "domcontentloaded" | "networkidle",
         timeout?: number,
     ): Promise<void> {
-        const timeoutMs = timeout || this.options.timeout || 10000;
+        const timeoutMs = timeout || this.options.timeout || 30000;
         const startTime = Date.now();
 
         logger.info(
@@ -189,7 +189,7 @@ export class BrowserPage {
             state?: "visible" | "hidden" | "attached";
         } = {},
     ): Promise<void> {
-        const timeoutMs = options.timeout || this.options.timeout || 10000;
+        const timeoutMs = options.timeout || this.options.timeout || 30000;
         const startTime = Date.now();
 
         return new Promise((resolve, reject) => {
@@ -387,7 +387,7 @@ export class BrowserPage {
     async expectResponseText(
         urlPattern: string,
         callback: () => Promise<void>,
-        timeout: number = 10000,
+        timeout: number = 30000,
     ): Promise<string> {
         logger.debug(
             `expectResponseText: starting for ${urlPattern}`,

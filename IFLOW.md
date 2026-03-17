@@ -193,7 +193,7 @@ if (await locator.exists()) {
 ```typescript
 const networkListener = client.getNetworkListener();
 networkListener.enable(['https://api.example.com/*']);
-await networkListener.waitForNetworkIdle(500, 0, 10000);
+await networkListener.waitForNetworkIdle(500, 0, 30000);
 ```
 
 ### BrowserHttpServer (src/http/HttpServer.ts)
@@ -408,7 +408,7 @@ const response = await page.expectResponseText(
     async () => {
         await page.evaluate("document.querySelector('#load').click()");
     },
-    10000
+    30000
 );
 console.log('Response:', response);
 
